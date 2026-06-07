@@ -39,9 +39,17 @@ export function AuthProvider({ children }) {
       .eq('id', user.id)
   }
 
-  async function signUp(email, password) {
-    const { error } = await supabase.auth.signUp({ email, password })
+  async function signUp(email, password, language) {
+    const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
+    // Save chosen language immediately after signup
+    if (data.user && language) {
+      await supabase
+        .from('users')
+        .update({ active_language: language })
+        .eq('id', data.user.id)
+      setActiveLangState(language)
+    }
   }
 
   async function signIn(email, password) {

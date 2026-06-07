@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
@@ -12,20 +12,12 @@ const LANG_META = {
 export default function HomeScreen() {
   const { user, activeLang, setActiveLang, langLoading } = useAuth()
   const navigate = useNavigate()
-  const { state } = useLocation()
   const inputRef = useRef(null)
 
   const [stats, setStats] = useState({ new: 0, learning: 0, mastered: 0 })
   const [dueCount, setDueCount] = useState(0)
   const [word, setWord] = useState('')
   const [statsLoading, setStatsLoading] = useState(true)
-
-  // Save language chosen on signup
-  useEffect(() => {
-    if (state?.language) {
-      setActiveLang(state.language)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (langLoading) return

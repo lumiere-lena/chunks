@@ -16,8 +16,8 @@ export default function SignUpScreen() {
     setError('')
     setLoading(true)
     try {
-      await signUp(email, password)
-      navigate('/home', { replace: true, state: { language: state?.language } })
+      await signUp(email, password, state?.language)
+      navigate('/home', { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {
