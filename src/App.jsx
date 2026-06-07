@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import LandingScreen from './screens/LandingScreen'
 import SignUpScreen from './screens/SignUpScreen'
 import SignInScreen from './screens/SignInScreen'
+import HomeScreen from './screens/HomeScreen'
+import CardDraftScreen from './screens/CardDraftScreen'
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
@@ -24,7 +26,8 @@ function AppRoutes() {
       <Route path="/" element={<AuthRoute><LandingScreen /></AuthRoute>} />
       <Route path="/signup" element={<AuthRoute><SignUpScreen /></AuthRoute>} />
       <Route path="/signin" element={<AuthRoute><SignInScreen /></AuthRoute>} />
-      <Route path="/home" element={<ProtectedRoute><div style={{padding:20}}>Home — coming soon</div></ProtectedRoute>} />
+      <Route path="/home" element={<ProtectedRoute><HomeScreen /></ProtectedRoute>} />
+      <Route path="/draft" element={<ProtectedRoute><CardDraftScreen /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
