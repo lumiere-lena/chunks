@@ -186,12 +186,46 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Generate card
-    const langName = LANG_NAMES[language] ?? language
-    const cardData = await generateWithOpenRouter(word, langName, model)
-    // cardData.word is the model-cleaned headword (lemma + typo fix), used as final word
-    const card = { model, ...cardData }
+    // Service-role client for dictionary writes (RLS bypass)
+    const serviceClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
 
+    const langName = LANG_NAMES[language] ?? language
+    const wordLower = word.toLowerCase().trim()
+
+    // Check dictionary cache first
+    const { data: cached } = await serviceClient
+      .from('dictionary')
+      .select('word, pos, definition, patterns, model')
+      .eq('word', wordLower)
+      .eq('language', language)
+      .single()
+
+    if (cached) {
+      console.log(`[generate-card] cache hit: "${wordLower}" (${language})`)
+      return new Response(JSON.stringify({ ...cached, cached: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Cache miss — generate via AI
+    const cardData = await generateWithOpenRouter(word, langName, model)
+
+    // Save to dictionary (upsert in case of race)
+    const dictWord = cardData.word.toLowerCase().trim()
+    await serviceClient.from('dictionary').upsert({
+      word: dictWord,
+      language,
+      pos: cardData.pos,
+      definition: cardData.definition,
+      patterns: cardData.patterns,
+      model,
+    }, { onConflict: 'word,language' })
+    console.log(`[generate-card] cached: "${dictWord}" (${language})`)
+
+    const card = { model, ...cardData }
     return new Response(JSON.stringify(card), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

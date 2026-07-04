@@ -14,7 +14,7 @@ export default function CardDraftScreen() {
   const language = state?.language ?? 'sr'
 
   const [card,   setCard]   = useState(null)
-  const [status, setStatus] = useState('idle') // idle | loading | error | done
+  const [status, setStatus] = useState('idle') // idle | loading | error | done | duplicate
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -47,6 +47,21 @@ export default function CardDraftScreen() {
         return
       }
       setCard(data)
+
+      // Check if user already has this word
+      const headword = data.word.toLowerCase().trim()
+      const { count } = await supabase
+        .from('cards')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('language', language)
+        .ilike('word', headword)
+
+      if (count > 0) {
+        setStatus('duplicate')
+        return
+      }
+
       setStatus('done')
     } catch {
       setStatus('error')
@@ -156,6 +171,29 @@ export default function CardDraftScreen() {
             <div style={{ fontSize: 13, color: 'var(--t2)' }}>Upgrade to Pro for unlimited cards</div>
             <button className="btn btn-acc" style={{ marginTop: 4, width: 'auto', padding: '12px 24px' }}>
               Upgrade to Pro
+            </button>
+          </div>
+        )}
+
+        {/* Duplicate */}
+        {status === 'duplicate' && card && (
+          <div style={{
+            background: 'var(--s1)', border: '1.5px solid var(--hard-c)', borderRadius: 18,
+            padding: '28px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 32 }}>📋</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>
+              "{card.word}" is already in your library
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--t2)' }}>
+              You can find it in your Library
+            </div>
+            <button
+              onClick={() => navigate('/library', { replace: true })}
+              className="btn btn-acc"
+              style={{ marginTop: 4, width: 'auto', padding: '12px 24px' }}
+            >
+              Go to Library
             </button>
           </div>
         )}
