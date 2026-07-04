@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
+import { normalizeWord } from '../lib/normalizeWord'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -51,9 +52,9 @@ export default function HomeScreen() {
   }
 
   function handleSubmit() {
-    const trimmed = word.trim()
-    if (!trimmed) return
-    navigate('/draft', { state: { word: trimmed, language: activeLang } })
+    const normalized = normalizeWord(word, activeLang)
+    if (!normalized) return
+    navigate('/draft', { state: { word: normalized, language: activeLang } })
   }
 
   const lang = LANG_META[activeLang] ?? null

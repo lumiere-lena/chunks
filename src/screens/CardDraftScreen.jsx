@@ -3,10 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
-const MODEL_OPTIONS = [
-  { key: 'haiku',  label: 'Haiku 4.5' },
-  { key: 'gemini', label: 'Gemini 2.5 Flash' },
-]
+const MODEL = 'gemini'
 
 export default function CardDraftScreen() {
   const { user } = useAuth()
@@ -16,17 +13,15 @@ export default function CardDraftScreen() {
   const word     = state?.word     ?? ''
   const language = state?.language ?? 'sr'
 
-  const [model,   setModel]   = useState('haiku')
-  const [card,    setCard]    = useState(null)   // { pos, definition, patterns }
-  const [status,  setStatus]  = useState('idle') // idle | loading | error | done
-  const [saving,  setSaving]  = useState(false)
+  const [card,   setCard]   = useState(null)
+  const [status, setStatus] = useState('idle') // idle | loading | error | done
+  const [saving, setSaving] = useState(false)
 
-  // Auto-generate on mount
   useEffect(() => {
-    if (word) generate(model)
+    if (word) generate()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function generate(modelKey) {
+  async function generate() {
     setStatus('loading')
     setCard(null)
     try {
@@ -39,7 +34,7 @@ export default function CardDraftScreen() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ word, language, model: modelKey }),
+          body: JSON.stringify({ word, language, model: MODEL }),
         }
       )
       const data = await res.json()
@@ -56,11 +51,6 @@ export default function CardDraftScreen() {
     } catch {
       setStatus('error')
     }
-  }
-
-  function switchModel(key) {
-    setModel(key)
-    generate(key)
   }
 
   async function handleSave() {
@@ -89,29 +79,24 @@ export default function CardDraftScreen() {
     <div className="screen" style={{ background: 'var(--bg)' }}>
 
       {/* Header */}
-      <div style={{
-        padding: '18px 20px 0',
-        display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0,
-      }}>
+      <div style={{ padding: '16px 20px 0', flexShrink: 0 }}>
         <button
           onClick={() => navigate(-1)}
           style={{
-            background: 'var(--s1)', border: 'none', borderRadius: 12,
-            width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', flexShrink: 0,
+            background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4,
+            fontSize: 15, fontWeight: 600, color: 'var(--t2)', fontFamily: 'inherit', padding: 0,
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
+          Back
         </button>
-        <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.01em' }}>
-          New card
-        </div>
       </div>
 
       {/* Body */}
-      <div className="scroll" style={{ padding: '20px 20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="scroll" style={{ padding: '14px 20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
         {/* Word */}
         <div style={{
@@ -128,30 +113,6 @@ export default function CardDraftScreen() {
           }}>
             {language === 'sr' ? '🇷🇸 SR' : '🇬🇧 EN'}
           </div>
-        </div>
-
-        {/* Model switcher */}
-        <div style={{
-          background: 'var(--s1)', borderRadius: 14, padding: 5,
-          display: 'flex', gap: 4,
-        }}>
-          {MODEL_OPTIONS.map(m => (
-            <button
-              key={m.key}
-              onClick={() => switchModel(m.key)}
-              disabled={status === 'loading'}
-              style={{
-                flex: 1, border: 'none', borderRadius: 10, padding: '9px 0',
-                fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
-                background: model === m.key ? 'var(--acc)' : 'transparent',
-                color:      model === m.key ? 'white'      : 'var(--t2)',
-                transition: 'background 0.15s, color 0.15s',
-                opacity: status === 'loading' ? 0.6 : 1,
-              }}
-            >
-              {m.label}
-            </button>
-          ))}
         </div>
 
         {/* Loading */}
@@ -175,7 +136,7 @@ export default function CardDraftScreen() {
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>Something went wrong</div>
             <div style={{ fontSize: 13, color: 'var(--t2)' }}>Couldn't generate the card. Try again?</div>
             <button
-              onClick={() => generate(model)}
+              onClick={() => generate()}
               className="btn btn-acc"
               style={{ marginTop: 4, width: 'auto', padding: '12px 24px' }}
             >
@@ -199,46 +160,62 @@ export default function CardDraftScreen() {
           </div>
         )}
 
-        {/* Card preview */}
+        {/* Card preview — single unified card */}
         {status === 'done' && card && (
-          <>
-            {/* POS */}
-            <div style={{ background: 'var(--s1)', borderRadius: 18, padding: '16px 20px' }}>
-              <div className="micro" style={{ marginBottom: 6 }}>Part of speech</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t1)' }}>{card.pos}</div>
-            </div>
-
-            {/* Definition */}
-            <div style={{ background: 'var(--s1)', borderRadius: 18, padding: '16px 20px' }}>
-              <div className="micro" style={{ marginBottom: 6 }}>Definition</div>
-              <div style={{ fontSize: 15, color: 'var(--t1)', lineHeight: 1.6 }}>{card.definition}</div>
-            </div>
-
-            {/* Patterns */}
-            <div style={{ background: 'var(--s1)', borderRadius: 18, padding: '16px 20px' }}>
-              <div className="micro" style={{ marginBottom: 10 }}>Usage patterns</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {card.patterns.map((p, i) => (
-                  <PatternRow key={i} pattern={p} word={card.word} />
-                ))}
+          <div style={{
+            background: 'var(--s1)', borderRadius: 22, padding: '22px 22px 20px',
+            display: 'flex', flexDirection: 'column', gap: 18,
+          }}>
+            {/* Word + POS pill */}
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ fontSize: 40, fontWeight: 800, color: 'var(--acc)', letterSpacing: '-0.035em', lineHeight: 1 }}>
+                {card.word}
+              </div>
+              <div style={{
+                flexShrink: 0,
+                fontSize: 12, fontWeight: 700, color: 'var(--t2)',
+                background: 'var(--s2)', borderRadius: 8, padding: '4px 10px', whiteSpace: 'nowrap',
+              }}>
+                {card.pos}
               </div>
             </div>
 
-            {/* Regenerate hint */}
-            <button
-              onClick={() => generate(model)}
-              style={{
-                background: 'none', border: 'none', fontFamily: 'inherit',
-                fontSize: 13, fontWeight: 600, color: 'var(--t3)', cursor: 'pointer',
-                textAlign: 'center', padding: '4px 0', textDecoration: 'underline',
-                textDecorationColor: 'transparent',
-              }}
-              onMouseEnter={e => e.target.style.color = 'var(--t2)'}
-              onMouseLeave={e => e.target.style.color = 'var(--t3)'}
-            >
-              ↺ Regenerate
-            </button>
-          </>
+            {/* Definition */}
+            <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--t1)', lineHeight: 1.6 }}>{card.definition}</div>
+
+            <div style={{ height: 1, background: 'var(--border)' }} />
+
+            {/* Usage patterns */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--t3)' }}>
+                  Usage patterns
+                </span>
+                <button
+                  onClick={() => generate()}
+                  style={{
+                    background: 'none', border: 'none', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: 12.5, fontWeight: 700, color: 'var(--t3)', cursor: 'pointer', padding: 0,
+                    transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--acc)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5"/>
+                    <path d="M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>
+                  </svg>
+                  Regenerate
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {card.patterns.map((p, i) => (
+                  <PatternRow key={i} pattern={p} />
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -251,8 +228,9 @@ export default function CardDraftScreen() {
         <button
           onClick={() => navigate(-1)}
           style={{
-            flex: 1, height: 50, background: 'var(--s1)', border: 'none',
-            borderRadius: 14, fontSize: 15, fontWeight: 700, color: 'var(--t2)',
+            flex: 1, height: 50, background: 'var(--s1)',
+            border: '1.5px solid var(--border)',
+            borderRadius: 14, fontSize: 15, fontWeight: 700, color: 'var(--t1)',
             fontFamily: 'inherit', cursor: 'pointer',
           }}
         >
@@ -276,19 +254,18 @@ export default function CardDraftScreen() {
   )
 }
 
-// Pattern with word highlighted
-function PatternRow({ pattern, word }) {
-  const parts = pattern.split('_____')
+function PatternRow({ pattern }) {
+  const parts = pattern.split(/<<([^>]+)>>/)
   return (
-    <div style={{ fontSize: 14, color: 'var(--t2)', lineHeight: 1.6 }}>
-      {parts.map((part, i) => (
-        <span key={i}>
-          {part}
-          {i < parts.length - 1 && (
-            <span style={{ color: 'var(--acc)', fontWeight: 700 }}>{word}</span>
-          )}
-        </span>
-      ))}
+    <div style={{
+      background: 'var(--bg)', borderRadius: 13, padding: '12px 16px',
+      fontSize: 15.5, fontWeight: 500, color: 'var(--t1)', lineHeight: 1.55,
+    }}>
+      {parts.map((part, i) =>
+        i % 2 === 1
+          ? <span key={i} style={{ color: 'var(--acc)', fontWeight: 700 }}>{part}</span>
+          : <span key={i}>{part}</span>
+      )}
     </div>
   )
 }
