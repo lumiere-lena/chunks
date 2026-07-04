@@ -6,28 +6,30 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined) // undefined = loading
   const [activeLang, setActiveLangState] = useState(null)
+  const [plan, setPlan] = useState(null)
   const [langLoading, setLangLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) loadActiveLang(session.user.id)
+      if (session?.user) loadUserData(session.user.id)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) loadActiveLang(session.user.id)
-      else { setActiveLangState(null); setLangLoading(false) }
+      if (session?.user) loadUserData(session.user.id)
+      else { setActiveLangState(null); setPlan(null); setLangLoading(false) }
     })
     return () => subscription.unsubscribe()
   }, [])
 
-  async function loadActiveLang(userId) {
+  async function loadUserData(userId) {
     const { data } = await supabase
       .from('users')
-      .select('active_language')
+      .select('active_language, plan')
       .eq('id', userId)
       .single()
     if (data?.active_language) setActiveLangState(data.active_language)
+    setPlan(data?.plan ?? 'free')
     setLangLoading(false)
   }
 
@@ -62,7 +64,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, activeLang, setActiveLang, langLoading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, activeLang, setActiveLang, plan, langLoading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

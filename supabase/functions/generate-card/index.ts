@@ -10,22 +10,15 @@ const LANG_NAMES: Record<string, string> = {
   en: 'English',
 }
 
-const FREE_CARD_LIMIT = 30
+// Free users cannot generate cards at all
 
-// OpenRouter model IDs
-const MODELS: Record<string, string> = {
-  haiku:  'anthropic/claude-haiku-4-5',
-  gemini: 'openai/gpt-oss-120b:free',
-}
+const MODEL_ID = 'google/gemini-2.5-flash'
 
 async function generateWithOpenRouter(
   word: string,
   langName: string,
-  modelKey: string,
-): Promise<{ word: string; pos: string; definition: string; patterns: string[] }> {
-  const modelId = MODELS[modelKey] ?? MODELS.haiku
+): Promise<{ word: string; pos: string; definition: string; patterns: string[]; verb_forms?: Record<string, string> }> {
 
-  // Definition language: Serbian cards get English definitions; others use the card language.
   const defLang = langName === 'Serbian' ? 'English' : langName
 
   const prompt = `You are building a ${langName} vocabulary card for the input: "${word}".
@@ -50,11 +43,25 @@ Return ONLY valid JSON with this exact shape, no other text:
   "pos": "part of speech, e.g. noun (m), verb, adjective",
   "definition": "1-2 sentence definition written in ${defLang}",
   "patterns": [
-    "full natural sentence or phrase with the target word wrapped in [square brackets]",
-    "another pattern with the word in a different grammatical form, also in [brackets]",
+    "short phrase with the target word in <<double angle brackets>>",
+    "another pattern with a different grammatical form in <<brackets>>",
     "optional third pattern"
-  ]
+  ],
+  "verb_forms": null
 }
+
+VERB FORMS — only include if pos is "verb" (or starts with "verb"):
+${langName === 'English'
+  ? `For English verbs, set "verb_forms" to an object with three forms:
+  { "v1": "base form", "v2": "past simple", "v3": "past participle" }
+  Example for "run": { "v1": "run", "v2": "ran", "v3": "run" }
+  Example for "take": { "v1": "take", "v2": "took", "v3": "taken" }`
+  : `For Serbian verbs, set "verb_forms" to an object with two present-tense forms:
+  { "1sg": "1st person singular present", "3pl": "3rd person plural present" }
+  Example for "ići": { "1sg": "idem", "3pl": "idu" }
+  Example for "čitati": { "1sg": "čitam", "3pl": "čitaju" }
+  Example for "trebati": { "1sg": "trebam", "3pl": "trebaju" }`}
+For non-verbs, set "verb_forms" to null.
 
 Rules:
 - "word" is the cleaned headword, NOT the raw input
@@ -71,7 +78,7 @@ Rules:
 - Use varied grammatical forms across patterns to show how the word actually behaves
 - 2-3 patterns showing real collocations and grammatical constructions`
 
-  console.log(`[generate-card] model=${modelKey} (${modelId}), word="${word}", lang=${langName}`)
+  console.log(`[generate-card] model=${MODEL_ID}, word="${word}", lang=${langName}`)
 
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -82,11 +89,10 @@ Rules:
       'X-Title': 'Chunks',
     },
     body: JSON.stringify({
-      model: modelId,
+      model: MODEL_ID,
       max_tokens: 512,
       temperature: 0.3,
-      // json_object only for models that support it (Gemini); Haiku uses prompt-only
-      ...(modelKey === 'gemini' ? { response_format: { type: 'json_object' } } : {}),
+      response_format: { type: 'json_object' },
       messages: [{ role: 'user', content: prompt }],
     }),
   })
@@ -105,7 +111,6 @@ Rules:
 
   console.log(`[generate-card] raw content:`, content)
 
-  // Extract the JSON object even if the model wrapped it in prose or code fences.
   const start = content.indexOf('{')
   const end = content.lastIndexOf('}')
   if (start === -1 || end === -1 || end < start) {
@@ -123,7 +128,48 @@ Rules:
   if (!parsed.word || !parsed.pos || !parsed.definition || !Array.isArray(parsed.patterns)) {
     throw new Error(`Invalid card shape: ${JSON.stringify(parsed).slice(0, 200)}`)
   }
-  return parsed
+
+  const result: any = { word: parsed.word, pos: parsed.pos, definition: parsed.definition, patterns: parsed.patterns }
+  if (parsed.verb_forms && typeof parsed.verb_forms === 'object') {
+    result.verb_forms = parsed.verb_forms
+  }
+  return result
+}
+
+// Dictionary cache via REST API
+async function dictLookup(word: string, language: string): Promise<any | null> {
+  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary?word=eq.${encodeURIComponent(word)}&language=eq.${encodeURIComponent(language)}&select=word,pos,definition,patterns,verb_forms,model&limit=1`
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!}`,
+      },
+    })
+    if (!res.ok) return null
+    const rows = await res.json()
+    return rows?.[0] ?? null
+  } catch {
+    return null
+  }
+}
+
+async function dictSave(entry: { word: string; language: string; pos: string; definition: string; patterns: string[]; verb_forms?: Record<string, string>; model: string }) {
+  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary`
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify(entry),
+    })
+  } catch (e) {
+    console.error('[generate-card] dict save error:', e)
+  }
 }
 
 Deno.serve(async (req) => {
@@ -132,7 +178,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { word, language, model = 'haiku' } = await req.json()
+    const { word, language } = await req.json()
 
     if (!word || !language) {
       return new Response(JSON.stringify({ error: 'word and language are required' }), {
@@ -171,38 +217,18 @@ Deno.serve(async (req) => {
       .eq('id', user.id)
       .single()
 
-    if (userData?.plan === 'free') {
-      const { count } = await supabase
-        .from('cards')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('language', language)
-
-      if ((count ?? 0) >= FREE_CARD_LIMIT) {
-        return new Response(JSON.stringify({ error: 'card_limit_reached' }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
+    if (!userData?.plan || userData.plan === 'free') {
+      return new Response(JSON.stringify({ error: 'subscription_required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
-
-    // Service-role client for dictionary writes (RLS bypass)
-    const serviceClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
 
     const langName = LANG_NAMES[language] ?? language
     const wordLower = word.toLowerCase().trim()
 
-    // Check dictionary cache first
-    const { data: cached } = await serviceClient
-      .from('dictionary')
-      .select('word, pos, definition, patterns, model')
-      .eq('word', wordLower)
-      .eq('language', language)
-      .single()
-
+    // Check dictionary cache
+    const cached = await dictLookup(wordLower, language)
     if (cached) {
       console.log(`[generate-card] cache hit: "${wordLower}" (${language})`)
       return new Response(JSON.stringify({ ...cached, cached: true }), {
@@ -211,22 +237,25 @@ Deno.serve(async (req) => {
     }
 
     // Cache miss — generate via AI
-    const cardData = await generateWithOpenRouter(word, langName, model)
+    const cardData = await generateWithOpenRouter(word, langName)
 
-    // Save to dictionary (upsert in case of race)
+    // Save to dictionary (fire-and-forget)
     const dictWord = cardData.word.toLowerCase().trim()
-    await serviceClient.from('dictionary').upsert({
+    const dictEntry: any = {
       word: dictWord,
       language,
       pos: cardData.pos,
       definition: cardData.definition,
       patterns: cardData.patterns,
-      model,
-    }, { onConflict: 'word,language' })
+      model: MODEL_ID,
+    }
+    if (cardData.verb_forms) {
+      dictEntry.verb_forms = cardData.verb_forms
+    }
+    dictSave(dictEntry)
     console.log(`[generate-card] cached: "${dictWord}" (${language})`)
 
-    const card = { model, ...cardData }
-    return new Response(JSON.stringify(card), {
+    return new Response(JSON.stringify(cardData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {

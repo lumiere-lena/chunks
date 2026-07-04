@@ -8,49 +8,65 @@ const LANG_META = {
   en: { flag: '🇬🇧', name: 'English' },
 }
 
-const FILTERS = ['all', 'new', 'learning', 'mastered']
-
-const BADGE_STYLES = {
-  new:      { color: 'var(--new-c)',      background: 'color-mix(in oklch, var(--new-c) 18%, transparent)' },
-  learning: { color: 'var(--learning-c)', background: 'color-mix(in oklch, var(--learning-c) 18%, transparent)' },
-  mastered: { color: 'var(--mastered-c)', background: 'color-mix(in oklch, var(--mastered-c) 18%, transparent)' },
-}
-
-export default function LibraryScreen() {
+export default function DictionaryScreen() {
   const { user, activeLang, setActiveLang } = useAuth()
-  const [cards, setCards] = useState([])
-  const [filter, setFilter] = useState('all')
+  const [words, setWords] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
+  const [addingId, setAddingId] = useState(null)
+  const [myWords, setMyWords] = useState(new Set())
 
-  useEffect(() => { fetchCards() }, [activeLang]) // eslint-disable-line
+  useEffect(() => { fetchAll() }, [activeLang]) // eslint-disable-line
 
-  async function fetchCards() {
+  async function fetchAll() {
     setLoading(true)
-    const { data } = await supabase
-      .from('cards')
-      .select('id, word, pos, definition, patterns, verb_forms, status, created_at')
-      .eq('user_id', user.id)
-      .eq('language', activeLang)
-      .order('created_at', { ascending: false })
-
-    setCards(data ?? [])
+    const [{ data: dictData }, { data: cardsData }] = await Promise.all([
+      supabase
+        .from('dictionary')
+        .select('id, word, pos, definition, patterns, verb_forms, language')
+        .eq('language', activeLang)
+        .order('word', { ascending: true }),
+      supabase
+        .from('cards')
+        .select('word')
+        .eq('user_id', user.id)
+        .eq('language', activeLang),
+    ])
+    setWords(dictData ?? [])
+    setMyWords(new Set((cardsData ?? []).map(c => c.word.toLowerCase())))
     setLoading(false)
   }
 
-  async function handleDelete(id) {
-    setCards(prev => prev.filter(c => c.id !== id))
-    await supabase.from('cards').delete().eq('id', id)
+  async function handleAdd(entry) {
+    if (myWords.has(entry.word.toLowerCase())) return
+    setAddingId(entry.id)
+    const today = new Date().toISOString().split('T')[0]
+    const row = {
+      user_id: user.id,
+      language: activeLang,
+      word: entry.word,
+      pos: entry.pos,
+      definition: entry.definition,
+      patterns: entry.patterns,
+      status: 'new',
+      interval_days: 1,
+      ease_factor: 2.5,
+      next_review_at: today,
+    }
+    if (entry.verb_forms) row.verb_forms = entry.verb_forms
+    const { error } = await supabase.from('cards').insert(row)
+    if (!error) {
+      setMyWords(prev => new Set(prev).add(entry.word.toLowerCase()))
+    }
+    setAddingId(null)
   }
-
-  const filtered = filter === 'all' ? cards : cards.filter(c => c.status === filter)
 
   return (
     <div className="screen" style={{ background: 'var(--bg)' }}>
       {/* Header */}
       <div style={{ padding: '18px 20px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 className="h2">Library</h1>
+          <h1 className="h2">Dictionary</h1>
           <div style={{
             display: 'flex', background: 'var(--s1)', borderRadius: 20, padding: 3,
           }}>
@@ -73,94 +89,67 @@ export default function LibraryScreen() {
           </div>
         </div>
         <p style={{ fontSize: 13.5, color: 'var(--t2)', marginTop: 4 }}>
-          {cards.length} word{cards.length !== 1 ? 's' : ''}
+          {words.length} word{words.length !== 1 ? 's' : ''} available
         </p>
       </div>
 
-      {/* Filter tabs */}
-      <div style={{
-        display: 'flex', gap: 6, padding: '16px 20px 10px',
-        overflowX: 'auto', flexShrink: 0,
-      }}>
-        {FILTERS.map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            style={{
-              padding: '7px 16px', borderRadius: 20, border: 'none',
-              fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              whiteSpace: 'nowrap', fontFamily: 'inherit',
-              background: filter === f ? 'var(--acc)' : 'var(--s1)',
-              color: filter === f ? 'white' : 'var(--t2)',
-              transition: 'all 0.15s',
-            }}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
-
       {/* List */}
-      <div className="scroll" style={{ padding: '4px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="scroll" style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {loading && (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--t3)', fontSize: 14, fontWeight: 600 }}>
             Loading…
           </div>
         )}
 
-        {!loading && filtered.length === 0 && (
+        {!loading && words.length === 0 && (
           <div style={{
             textAlign: 'center', padding: '40px 20px',
             color: 'var(--t3)', fontSize: 14, fontWeight: 600,
           }}>
-            {cards.length === 0 ? 'No cards yet' : 'No cards match this filter'}
+            No words in dictionary yet
           </div>
         )}
 
-        {filtered.map(card => {
-          const isOpen = expandedId === card.id
+        {words.map(entry => {
+          const isOpen = expandedId === entry.id
+          const alreadyAdded = myWords.has(entry.word.toLowerCase())
+
           return (
-            <div key={card.id} style={{
+            <div key={entry.id} style={{
               background: 'var(--s1)', borderRadius: 14,
               transition: 'all 0.15s',
             }}>
               <div
-                onClick={() => setExpandedId(isOpen ? null : card.id)}
+                onClick={() => setExpandedId(isOpen ? null : entry.id)}
                 style={{
                   padding: '15px 18px', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)' }}>{card.word}</div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)' }}>{entry.word}</div>
                   {!isOpen && (
                     <div style={{
                       fontSize: 12.5, color: 'var(--t2)', marginTop: 3,
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 170,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200,
                     }}>
-                      {card.definition}
+                      {entry.definition}
                     </div>
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, borderRadius: 8, padding: '4px 10px',
-                    textTransform: 'capitalize',
-                    ...BADGE_STYLES[card.status],
-                  }}>
-                    {card.status}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(card.id) }}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'var(--t3)', padding: 4, display: 'flex', alignItems: 'center',
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
+                  {entry.pos && (
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, color: 'var(--t2)',
+                      background: 'var(--s2)', borderRadius: 8, padding: '3px 9px',
+                    }}>
+                      {entry.pos}
+                    </span>
+                  )}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
                 </div>
               </div>
 
@@ -170,35 +159,40 @@ export default function LibraryScreen() {
 
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--acc)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                      {card.word}
+                      {entry.word}
                     </div>
-                    {card.pos && (
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, color: 'var(--t2)',
-                        background: 'var(--s2)', borderRadius: 8, padding: '3px 9px',
-                        whiteSpace: 'nowrap', flexShrink: 0,
-                      }}>
-                        {card.pos}
-                      </span>
-                    )}
                   </div>
 
-                  {card.verb_forms && <VerbForms forms={card.verb_forms} language={activeLang} />}
+                  {entry.verb_forms && <VerbForms forms={entry.verb_forms} language={activeLang} />}
 
                   <p style={{ fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'var(--t1)', margin: 0 }}>
-                    {card.definition}
+                    {entry.definition}
                   </p>
 
-                  {card.patterns?.length > 0 && (
+                  {entry.patterns?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--t3)' }}>
                         Usage patterns
                       </span>
-                      {card.patterns.map((p, i) => (
-                        <PatternRow key={i} pattern={p} word={card.word} />
+                      {entry.patterns.map((p, i) => (
+                        <PatternRow key={i} pattern={p} word={entry.word} />
                       ))}
                     </div>
                   )}
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleAdd(entry) }}
+                    disabled={alreadyAdded || addingId === entry.id}
+                    style={{
+                      padding: '11px 16px', borderRadius: 12, border: 'none',
+                      fontSize: 14, fontWeight: 700, fontFamily: 'inherit', cursor: alreadyAdded ? 'default' : 'pointer',
+                      background: alreadyAdded ? 'var(--s2)' : 'var(--acc)',
+                      color: alreadyAdded ? 'var(--t3)' : 'white',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {alreadyAdded ? 'Already in your library' : addingId === entry.id ? 'Adding…' : 'Add to my cards'}
+                  </button>
                 </div>
               )}
             </div>

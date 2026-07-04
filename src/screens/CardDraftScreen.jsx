@@ -72,7 +72,7 @@ export default function CardDraftScreen() {
     if (!card || saving) return
     setSaving(true)
     const today = new Date().toISOString().split('T')[0]
-    const { error } = await supabase.from('cards').insert({
+    const row = {
       user_id:        user.id,
       language,
       word:           card.word,
@@ -83,7 +83,9 @@ export default function CardDraftScreen() {
       interval_days:  1,
       ease_factor:    2.5,
       next_review_at: today,
-    })
+    }
+    if (card.verb_forms) row.verb_forms = card.verb_forms
+    const { error } = await supabase.from('cards').insert(row)
     setSaving(false)
     if (!error) {
       navigate('/home', { replace: true })
@@ -218,6 +220,9 @@ export default function CardDraftScreen() {
               </div>
             </div>
 
+            {/* Verb forms */}
+            {card.verb_forms && <VerbForms forms={card.verb_forms} language={language} />}
+
             {/* Definition */}
             <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--t1)', lineHeight: 1.6 }}>{card.definition}</div>
 
@@ -288,6 +293,27 @@ export default function CardDraftScreen() {
           {saving ? 'Saving…' : 'Save card'}
         </button>
       </div>
+    </div>
+  )
+}
+
+function VerbForms({ forms, language }) {
+  const isEnglish = language === 'en'
+  const entries = isEnglish
+    ? [['V1', forms.v1], ['V2', forms.v2], ['V3', forms.v3]]
+    : [['ja', forms['1sg']], ['oni/one', forms['3pl']]]
+
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      {entries.map(([label, value]) => value && (
+        <div key={label} style={{
+          background: 'var(--bg)', borderRadius: 10, padding: '8px 14px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 1,
+        }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t3)' }}>{label}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--acc)' }}>{value}</span>
+        </div>
+      ))}
     </div>
   )
 }

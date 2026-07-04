@@ -4,28 +4,40 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 
 // SM-2-ish SRS — 3-button: hard / ok / easy
+// First reviews use fixed intervals (1 → 1 → 3 → 7), then ease_factor kicks in
+const EARLY_INTERVALS = { ok: [1, 3, 7], easy: [3, 7, 14] }
+
 function applyRating(card, rating) {
   let { interval_days, ease_factor } = card
   let status = card.status
+  const reviewCount = card.review_count ?? 0
 
   if (rating === 'hard') {
-    interval_days = Math.max(1, Math.round(interval_days * ease_factor * 0.85))
+    interval_days = Math.max(1, Math.round(interval_days * 0.7))
     ease_factor = Math.max(1.3, ease_factor - 0.15)
     status = 'learning'
   } else if (rating === 'ok') {
-    interval_days = Math.max(1, Math.round(interval_days * ease_factor))
+    if (reviewCount < 3) {
+      interval_days = EARLY_INTERVALS.ok[reviewCount]
+    } else {
+      interval_days = Math.max(1, Math.round(interval_days * ease_factor))
+    }
     status = interval_days >= 21 ? 'mastered' : 'learning'
   } else if (rating === 'easy') {
-    interval_days = Math.max(1, Math.round(interval_days * ease_factor * 1.3))
+    if (reviewCount < 3) {
+      interval_days = EARLY_INTERVALS.easy[reviewCount]
+    } else {
+      interval_days = Math.max(1, Math.round(interval_days * ease_factor * 1.3))
+    }
     ease_factor = Math.min(3.0, ease_factor + 0.15)
-    status = 'mastered'
+    status = interval_days >= 21 ? 'mastered' : 'learning'
   }
 
   const next = new Date()
   next.setDate(next.getDate() + interval_days)
   const next_review_at = next.toISOString().split('T')[0]
 
-  return { interval_days, ease_factor, status, next_review_at }
+  return { interval_days, ease_factor, status, next_review_at, review_count: reviewCount + 1 }
 }
 
 const RATINGS = [
@@ -232,6 +244,8 @@ export default function StudyScreen() {
                 </span>
               </div>
 
+              {card.verb_forms && <VerbForms forms={card.verb_forms} language={card.language} />}
+
               <div style={{ height: 1, background: 'var(--border)' }} />
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -312,17 +326,45 @@ export default function StudyScreen() {
   )
 }
 
-function PatternRow({ pattern, revealed }) {
-  const parts = pattern.split(/<<([^>]+)>>/)
+function VerbForms({ forms, language }) {
+  const isEnglish = language === 'en'
+  const entries = isEnglish
+    ? [['V1', forms.v1], ['V2', forms.v2], ['V3', forms.v3]]
+    : [['ja', forms['1sg']], ['oni/one', forms['3pl']]]
+
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      {entries.map(([label, value]) => value && (
+        <div key={label} style={{
+          background: 'var(--bg)', borderRadius: 10, padding: '8px 14px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 1,
+        }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t3)' }}>{label}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--acc)' }}>{value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PatternRow({ pattern, revealed, word }) {
+  // Support both <<word>> markers and legacy _____ blanks
+  const hasMarkers = /<<[^>]+>>/.test(pattern)
+  const parts = hasMarkers
+    ? pattern.split(/<<([^>]+)>>/)
+    : pattern.split(/(_____+)/)
+
   return (
     <div style={{
       background: 'var(--bg)', borderRadius: 12, padding: '11px 14px',
       fontSize: 15, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
     }}>
       {parts.map((part, i) => {
-        if (i % 2 === 0) return <span key={i}>{part}</span>
+        const isSlot = hasMarkers ? i % 2 === 1 : /^_____+$/.test(part)
+        if (!isSlot) return <span key={i}>{part}</span>
         if (revealed) {
-          return <span key={i} style={{ color: 'var(--acc)', fontWeight: 800 }}>{part}</span>
+          const display = hasMarkers ? part : word
+          return <span key={i} style={{ color: 'var(--acc)', fontWeight: 800 }}>{display}</span>
         }
         return (
           <span key={i} style={{

@@ -8,6 +8,7 @@ import CardDraftScreen from './screens/CardDraftScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import StudyScreen from './screens/StudyScreen'
 import LibraryScreen from './screens/LibraryScreen'
+import DictionaryScreen from './screens/DictionaryScreen'
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
@@ -31,6 +32,7 @@ function AppRoutes() {
       <Route path="/signin" element={<AuthRoute><SignInScreen /></AuthRoute>} />
       <Route path="/home" element={<ProtectedRoute><HomeScreen /></ProtectedRoute>} />
       <Route path="/draft" element={<ProtectedRoute><CardDraftScreen /></ProtectedRoute>} />
+      <Route path="/dictionary" element={<ProtectedRoute><DictionaryScreen /></ProtectedRoute>} />
       <Route path="/library" element={<ProtectedRoute><LibraryScreen /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
       <Route path="/study" element={<ProtectedRoute><StudyScreen /></ProtectedRoute>} />

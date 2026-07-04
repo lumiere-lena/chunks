@@ -11,7 +11,7 @@ const LANG_META = {
 }
 
 export default function HomeScreen() {
-  const { user, activeLang, setActiveLang, langLoading } = useAuth()
+  const { user, activeLang, setActiveLang, plan, langLoading } = useAuth()
   const navigate = useNavigate()
   const inputRef = useRef(null)
 
@@ -51,7 +51,10 @@ export default function HomeScreen() {
     setStatsLoading(false)
   }
 
+  const isFree = plan === 'free'
+
   function handleSubmit() {
+    if (isFree) return
     const normalized = normalizeWord(word, activeLang)
     if (!normalized) return
     navigate('/draft', { state: { word: normalized, language: activeLang } })
@@ -65,20 +68,26 @@ export default function HomeScreen() {
       {/* Header */}
       <div style={{ padding: '18px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--acc)', letterSpacing: '-0.02em' }}>Chunks</div>
-        <button
-          onClick={() => navigate('/profile')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 7,
-            background: 'var(--s1)', border: 'none', borderRadius: 20,
-            padding: '8px 14px', fontSize: 13.5, fontWeight: 700,
-            color: lang ? 'var(--t1)' : 'var(--t3)', cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          {lang ? `${lang.flag} ${lang.name}` : 'Pick language'}
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </button>
+        <div style={{
+          display: 'flex', background: 'var(--s1)', borderRadius: 20, padding: 3,
+        }}>
+          {Object.entries(LANG_META).map(([id, m]) => (
+            <button
+              key={id}
+              onClick={() => setActiveLang(id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '6px 12px', borderRadius: 17, border: 'none',
+                fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                background: activeLang === id ? 'var(--acc)' : 'transparent',
+                color: activeLang === id ? 'white' : 'var(--t2)',
+                transition: 'all 0.15s',
+              }}
+            >
+              {m.flag} {m.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Body */}
@@ -168,13 +177,15 @@ export default function HomeScreen() {
         <div style={{
           background: 'var(--s1)', borderRadius: 16, padding: 10,
           display: 'flex', alignItems: 'center', gap: 8,
+          opacity: isFree ? 0.55 : 1,
         }}>
           <input
             ref={inputRef}
             value={word}
-            onChange={e => setWord(e.target.value)}
+            onChange={e => !isFree && setWord(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            placeholder="Add a word or phrase…"
+            placeholder={isFree ? 'Card generation requires a subscription' : 'Add a word or phrase…'}
+            disabled={isFree}
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none',
               fontFamily: 'inherit', fontSize: 16, color: 'var(--t1)',
@@ -183,11 +194,11 @@ export default function HomeScreen() {
           />
           <button
             onClick={handleSubmit}
-            disabled={!word.trim()}
+            disabled={isFree || !word.trim()}
             style={{
               width: 42, height: 42,
-              background: word.trim() ? 'var(--acc)' : 'var(--s2)',
-              border: 'none', borderRadius: 11, cursor: word.trim() ? 'pointer' : 'default',
+              background: !isFree && word.trim() ? 'var(--acc)' : 'var(--s2)',
+              border: 'none', borderRadius: 11, cursor: !isFree && word.trim() ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               transition: 'background 0.15s',
             }}
@@ -197,6 +208,11 @@ export default function HomeScreen() {
             </svg>
           </button>
         </div>
+        {isFree && (
+          <p style={{ fontSize: 12.5, color: 'var(--t3)', textAlign: 'center', margin: 0 }}>
+            Browse the Dictionary to add words to your library
+          </p>
+        )}
       </div>
 
       <NavBar />
