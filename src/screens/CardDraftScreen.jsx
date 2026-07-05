@@ -86,6 +86,7 @@ export default function CardDraftScreen() {
       ease_factor:    2.5,
       next_review_at: today,
     }
+    if (card.translation_ru) row.translation_ru = card.translation_ru
     if (card.verb_forms) row.verb_forms = card.verb_forms
     const { error } = await supabase.from('cards').insert(row)
     setSaving(false)
@@ -239,6 +240,9 @@ export default function CardDraftScreen() {
 
             {/* Definition */}
             <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--t1)', lineHeight: 1.6 }}>{card.definition}</div>
+            {card.translation_ru && (
+              <div style={{ fontSize: 14, color: 'var(--t2)', fontStyle: 'italic' }}>{card.translation_ru}</div>
+            )}
 
             <div style={{ height: 1, background: 'var(--border)' }} />
 

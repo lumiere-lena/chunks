@@ -29,7 +29,7 @@ export default function LibraryScreen() {
     setLoading(true)
     const { data } = await supabase
       .from('cards')
-      .select('id, word, pos, definition, patterns, verb_forms, status, created_at')
+      .select('id, word, pos, definition, translation_ru, patterns, verb_forms, status, created_at')
       .eq('user_id', user.id)
       .eq('language', activeLang)
       .order('created_at', { ascending: false })
@@ -188,6 +188,9 @@ export default function LibraryScreen() {
                   <p style={{ fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'var(--t1)', margin: 0 }}>
                     {card.definition}
                   </p>
+                  {card.translation_ru && (
+                    <div style={{ fontSize: 13, color: 'var(--t2)', fontStyle: 'italic' }}>{card.translation_ru}</div>
+                  )}
 
                   {card.patterns?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

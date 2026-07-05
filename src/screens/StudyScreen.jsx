@@ -252,6 +252,9 @@ export default function StudyScreen() {
                 <p style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--t1)' }}>
                   {card.definition}
                 </p>
+                {card.translation_ru && (
+                  <div style={{ fontSize: 14, color: 'var(--t2)', fontStyle: 'italic' }}>{card.translation_ru}</div>
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <span className="micro">Usage patterns</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>

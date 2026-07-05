@@ -17,9 +17,9 @@ const MODEL_ID = 'google/gemini-2.5-flash'
 async function generateWithOpenRouter(
   word: string,
   langName: string,
-): Promise<{ word: string; pos: string; definition: string; patterns: string[]; verb_forms?: Record<string, string> }> {
+): Promise<{ word: string; pos: string; definition: string; translation_ru?: string; patterns: string[]; verb_forms?: Record<string, string> }> {
 
-  const defLang = langName === 'Serbian' ? 'English' : langName
+  const isSr = langName === 'Serbian'
 
   const prompt = `You are building a ${langName} vocabulary card for the input: "${word}".
 
@@ -47,7 +47,7 @@ Return ONLY valid JSON with this exact shape, no other text:
 {
   "word": "the corrected dictionary headword",
   "pos": "part of speech, e.g. noun (m), verb, adjective",
-  "definition": "1-2 sentence definition in ${defLang}, direct meaning only — no meta-phrases like 'This term describes…' or 'It is a word that…'",
+  "definition": "1-2 sentence definition in ${langName}, direct meaning only — no meta-phrases like 'This term describes…' or 'It is a word that…'",${isSr ? '\n  "translation_ru": "short Russian translation (1-3 words, e.g. \'бежать\', \'важный\', \'дом\')",' : ''}
   "patterns": [
     "short phrase with the target word in <<double angle brackets>>",
     "another pattern with a different grammatical form in <<brackets>>",
@@ -71,8 +71,8 @@ For non-verbs, set "verb_forms" to null.
 
 Rules:
 - "word" is the cleaned headword, NOT the raw input
-- definition must be written in ${defLang}
-- Write the definition directly — never start with meta-phrases like "This term describes", "This word refers to", "It is a word that", "A term used to". Jump straight to the meaning.
+- definition must be written in ${langName} (the language being learned)
+- Write the definition directly — never start with meta-phrases like "This term describes", "This word refers to", "It is a word that", "A term used to". Jump straight to the meaning.${isSr ? '\n- "translation_ru" is a short Russian translation (1-3 words), required for Serbian cards' : ''}
 - the definition must NOT contain the headword or any word sharing its root/stem
   (e.g. for "greatness" do not use "great", "greatly"; for "decision" do not use "decide").
   Explain the meaning using different vocabulary — paraphrase instead.
@@ -146,6 +146,7 @@ Rules:
   }
 
   const result: any = { word: parsed.word, pos: parsed.pos, definition: parsed.definition, patterns: parsed.patterns }
+  if (parsed.translation_ru) result.translation_ru = parsed.translation_ru
   if (parsed.verb_forms && typeof parsed.verb_forms === 'object') {
     result.verb_forms = parsed.verb_forms
   }
@@ -154,7 +155,7 @@ Rules:
 
 // Dictionary cache via REST API
 async function dictLookup(word: string, language: string): Promise<any | null> {
-  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary?word=eq.${encodeURIComponent(word)}&language=eq.${encodeURIComponent(language)}&select=word,pos,definition,patterns,verb_forms,model&limit=1`
+  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary?word=eq.${encodeURIComponent(word)}&language=eq.${encodeURIComponent(language)}&select=word,pos,definition,translation_ru,patterns,verb_forms,model&limit=1`
   try {
     const res = await fetch(url, {
       headers: {
@@ -170,7 +171,7 @@ async function dictLookup(word: string, language: string): Promise<any | null> {
   }
 }
 
-async function dictSave(entry: { word: string; language: string; pos: string; definition: string; patterns: string[]; verb_forms?: Record<string, string>; model: string }) {
+async function dictSave(entry: { word: string; language: string; pos: string; definition: string; translation_ru?: string; patterns: string[]; verb_forms?: Record<string, string>; model: string }) {
   const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary`
   try {
     await fetch(url, {
@@ -272,9 +273,8 @@ Deno.serve(async (req) => {
       patterns: cardData.patterns,
       model: MODEL_ID,
     }
-    if (cardData.verb_forms) {
-      dictEntry.verb_forms = cardData.verb_forms
-    }
+    if (cardData.translation_ru) dictEntry.translation_ru = cardData.translation_ru
+    if (cardData.verb_forms) dictEntry.verb_forms = cardData.verb_forms
     dictSave(dictEntry)
     console.log(`[generate-card] cached: "${dictWord}" (${language})`)
 

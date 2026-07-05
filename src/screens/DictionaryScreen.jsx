@@ -23,7 +23,7 @@ export default function DictionaryScreen() {
     const [{ data: dictData }, { data: cardsData }] = await Promise.all([
       supabase
         .from('dictionary')
-        .select('id, word, pos, definition, patterns, verb_forms, language')
+        .select('id, word, pos, definition, translation_ru, patterns, verb_forms, language')
         .eq('language', activeLang)
         .order('word', { ascending: true }),
       supabase
@@ -53,6 +53,7 @@ export default function DictionaryScreen() {
       ease_factor: 2.5,
       next_review_at: today,
     }
+    if (entry.translation_ru) row.translation_ru = entry.translation_ru
     if (entry.verb_forms) row.verb_forms = entry.verb_forms
     const { error } = await supabase.from('cards').insert(row)
     if (!error) {
@@ -168,6 +169,9 @@ export default function DictionaryScreen() {
                   <p style={{ fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'var(--t1)', margin: 0 }}>
                     {entry.definition}
                   </p>
+                  {entry.translation_ru && (
+                    <div style={{ fontSize: 13, color: 'var(--t2)', fontStyle: 'italic' }}>{entry.translation_ru}</div>
+                  )}
 
                   {entry.patterns?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

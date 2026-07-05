@@ -99,6 +99,7 @@ export default function BulkImportScreen() {
           ease_factor: 2.5,
           next_review_at: today,
         }
+        if (data.translation_ru) row.translation_ru = data.translation_ru
         if (data.verb_forms) row.verb_forms = data.verb_forms
 
         const { error } = await supabase.from('cards').insert(row)
