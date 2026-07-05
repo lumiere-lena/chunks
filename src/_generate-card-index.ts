@@ -76,12 +76,17 @@ Rules:
 - the definition must NOT contain the headword or any word sharing its root/stem
   (e.g. for "greatness" do not use "great", "greatly"; for "decision" do not use "decide").
   Explain the meaning using different vocabulary — paraphrase instead.
-- Each pattern must be a SHORT PHRASE or collocation (3-7 words), NOT a full sentence.
-  Show the word in a typical grammatical context: with its common prepositions, collocates, or structures.
+- Each pattern must be a meaningful collocation (4-10 words) — not a bare two-word pair, but not a full sentence either.
+  Include enough context to show a real situation: a subject, an object, or a typical complement.
+  Use sth/sb/smn placeholders for generic objects when helpful.
+  BAD:  "derogatory remarks" (too bare, no context)
+  GOOD: "make <<derogatory>> remarks about sb"
+  BAD:  "rapidly proliferate" (no subject)
+  GOOD: "misinformation can rapidly <<proliferate>>"
 - Wrap ONLY the target word (in whatever grammatical form fits the context) in <<double angle brackets>>
   e.g. for "trebati": "meni <<treba>> pomoć", "<<trebam>> da učim", "ne <<treba>> da brineš"
-  e.g. for "impact": "have a significant <<impact>> on", "make a lasting <<impact>>", "<<impacting>> communities"
-  e.g. for "effort": "make a conscious <<effort>>", "combined <<efforts>>", "put in the <<effort>>"
+  e.g. for "impact": "have a significant <<impact>> on sth", "<<impacting>> local communities"
+  e.g. for "effort": "make a conscious <<effort>> to do sth", "combined <<efforts>> of the team"
 - Use varied grammatical forms across patterns to show how the word actually behaves
 - 2-3 patterns showing real collocations and grammatical constructions`
 
