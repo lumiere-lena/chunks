@@ -9,6 +9,7 @@ import ProfileScreen from './screens/ProfileScreen'
 import StudyScreen from './screens/StudyScreen'
 import LibraryScreen from './screens/LibraryScreen'
 import DictionaryScreen from './screens/DictionaryScreen'
+import BulkImportScreen from './screens/BulkImportScreen'
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
@@ -32,6 +33,7 @@ function AppRoutes() {
       <Route path="/signin" element={<AuthRoute><SignInScreen /></AuthRoute>} />
       <Route path="/home" element={<ProtectedRoute><HomeScreen /></ProtectedRoute>} />
       <Route path="/draft" element={<ProtectedRoute><CardDraftScreen /></ProtectedRoute>} />
+      <Route path="/import" element={<ProtectedRoute><BulkImportScreen /></ProtectedRoute>} />
       <Route path="/dictionary" element={<ProtectedRoute><DictionaryScreen /></ProtectedRoute>} />
       <Route path="/library" element={<ProtectedRoute><LibraryScreen /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />

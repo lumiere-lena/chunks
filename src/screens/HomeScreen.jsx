@@ -208,10 +208,24 @@ export default function HomeScreen() {
             </svg>
           </button>
         </div>
-        {isFree && (
+        {isFree ? (
           <p style={{ fontSize: 12.5, color: 'var(--t3)', textAlign: 'center', margin: 0 }}>
             Browse the Dictionary to add words to your library
           </p>
+        ) : (
+          <button
+            onClick={() => navigate('/import')}
+            style={{
+              background: 'none', border: 'none', fontFamily: 'inherit',
+              fontSize: 13, fontWeight: 600, color: 'var(--t3)', cursor: 'pointer',
+              padding: 0, alignSelf: 'center',
+              transition: 'color 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--acc)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}
+          >
+            Import multiple words
+          </button>
         )}
       </div>
 

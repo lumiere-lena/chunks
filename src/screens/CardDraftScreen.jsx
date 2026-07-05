@@ -41,6 +41,8 @@ export default function CardDraftScreen() {
       if (!res.ok) {
         if (data.error === 'card_limit_reached') {
           setStatus('limit')
+        } else if (data.error === 'inappropriate') {
+          setStatus('inappropriate')
         } else {
           setStatus('error')
         }
@@ -174,6 +176,18 @@ export default function CardDraftScreen() {
             <button className="btn btn-acc" style={{ marginTop: 4, width: 'auto', padding: '12px 24px' }}>
               Upgrade to Pro
             </button>
+          </div>
+        )}
+
+        {/* Inappropriate */}
+        {status === 'inappropriate' && (
+          <div style={{
+            background: 'var(--s1)', borderRadius: 18, padding: '28px 20px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 32 }}>🚫</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>Word not available</div>
+            <div style={{ fontSize: 13, color: 'var(--t2)' }}>This word can't be added to the dictionary</div>
           </div>
         )}
 

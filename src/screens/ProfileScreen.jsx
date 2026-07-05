@@ -8,7 +8,7 @@ const LANGS = [
 ]
 
 export default function ProfileScreen() {
-  const { user, activeLang, setActiveLang, signOut } = useAuth()
+  const { user, activeLang, setActiveLang, plan, signOut } = useAuth()
   const navigate = useNavigate()
 
   const email = user?.email ?? ''
@@ -85,7 +85,7 @@ export default function ProfileScreen() {
               padding: '15px 18px', borderBottom: '1px solid var(--border)',
             }}>
               <span style={{ fontSize: 15.5, fontWeight: 600, color: 'var(--t1)' }}>Plan</span>
-              <span style={{ fontSize: 14.5, color: 'var(--t2)' }}>Free</span>
+              <span style={{ fontSize: 14.5, color: 'var(--t2)', textTransform: 'capitalize' }}>{plan ?? 'free'}</span>
             </div>
             <button
               onClick={handleSignOut}
