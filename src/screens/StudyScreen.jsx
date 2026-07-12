@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
+import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 
 // SM-2-ish SRS — 3-button: hard / ok / easy
 // First reviews use fixed intervals (1 → 1 → 3 → 7), then ease_factor kicks in
@@ -69,8 +70,11 @@ const RATINGS = [
 ]
 
 export default function StudyScreen() {
-  const { user, activeLang } = useAuth()
+  const { user, activeLang, plan } = useAuth()
   const navigate = useNavigate()
+
+  const tapDisabled = plan === 'free'
+  const wt = useWordTap({ language: activeLang, userId: user.id })
 
   const [cards, setCards] = useState([])
   const [index, setIndex] = useState(0)
@@ -283,7 +287,7 @@ export default function StudyScreen() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <p style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--t1)' }}>
-                  {card.definition}
+                  <TappableText text={card.definition} idPrefix={`s-def-${card.id}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
                 </p>
                 {card.translation_ru && (
                   <div style={{ fontSize: 14, color: 'var(--t2)', fontStyle: 'italic' }}>{card.translation_ru}</div>
@@ -292,9 +296,19 @@ export default function StudyScreen() {
                   <span className="micro">Usage patterns</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     {(card.patterns ?? []).map((p, i) => (
-                      <PatternRow key={i} pattern={p} revealed={true} />
+                      <div key={i} style={{
+                        background: 'var(--bg)', borderRadius: 12, padding: '11px 14px',
+                        fontSize: 15, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
+                      }}>
+                        <TappablePattern pattern={p} word={card.word} idPrefix={`s-pat-${card.id}-${i}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
+                      </div>
                     ))}
                   </div>
+                  {!tapDisabled && (
+                    <div style={{ fontSize: 11.5, color: 'var(--t3)', fontWeight: 600, textAlign: 'center', marginTop: 2 }}>
+                      Tap any word to add it as a card
+                    </div>
+                  )}
                 </div>
               </div>
             </>
@@ -304,7 +318,7 @@ export default function StudyScreen() {
               <div>
                 <div className="micro" style={{ marginBottom: 10 }}>Think of the word…</div>
                 <p style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--t1)' }}>
-                  {card.definition}
+                  <TappableText text={card.definition} idPrefix={`s-def-${card.id}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
                 </p>
               </div>
 
@@ -316,9 +330,19 @@ export default function StudyScreen() {
                 <span className="micro">Usage patterns</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {(card.patterns ?? []).map((p, i) => (
-                    <PatternRow key={i} pattern={p} revealed={false} />
+                    <div key={i} style={{
+                      background: 'var(--bg)', borderRadius: 12, padding: '11px 14px',
+                      fontSize: 15, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
+                    }}>
+                      <TappablePattern pattern={p} word={card.word} idPrefix={`s-pat-${card.id}-${i}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} revealed={false} />
+                    </div>
                   ))}
                 </div>
+                {!tapDisabled && (
+                  <div style={{ fontSize: 11.5, color: 'var(--t3)', fontWeight: 600, textAlign: 'center', marginTop: 2 }}>
+                    Tap any word to add it as a card
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -360,6 +384,8 @@ export default function StudyScreen() {
           ))}
         </div>
       )}
+
+      <CreateCardBar selected={wt.selected} phase={wt.phase} result={wt.result} onConfirm={wt.confirm} onClose={wt.clear} />
     </div>
   )
 }
@@ -405,41 +431,6 @@ function WordHint({ word }) {
           <span key={i} style={{
             display: 'inline-block', width: 15, height: 20,
             borderBottom: '2.5px solid var(--t2)', opacity: 0.4,
-          }} />
-        )
-      })}
-    </div>
-  )
-}
-
-function PatternRow({ pattern, revealed, word }) {
-  // Support both <<word>> markers and legacy _____ blanks
-  const hasMarkers = /<<[^>]+>>/.test(pattern)
-  const parts = hasMarkers
-    ? pattern.split(/<<([^>]+)>>/)
-    : pattern.split(/(_____+)/)
-
-  return (
-    <div style={{
-      background: 'var(--bg)', borderRadius: 12, padding: '11px 14px',
-      fontSize: 15, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
-    }}>
-      {parts.map((part, i) => {
-        const isSlot = hasMarkers ? i % 2 === 1 : /^_____+$/.test(part)
-        if (!isSlot) return <span key={i}>{part}</span>
-        if (revealed) {
-          const display = hasMarkers ? part : word
-          return <span key={i} style={{ color: 'var(--acc)', fontWeight: 800 }}>{display}</span>
-        }
-        return (
-          <span key={i} style={{
-            display: 'inline-block',
-            minWidth: 60,
-            borderBottom: '2.5px solid var(--t2)',
-            height: '0.85em',
-            margin: '0 3px',
-            verticalAlign: 'bottom',
-            opacity: 0.35,
           }} />
         )
       })}

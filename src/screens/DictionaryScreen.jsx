@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
+import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -9,12 +10,19 @@ const LANG_META = {
 }
 
 export default function DictionaryScreen() {
-  const { user, activeLang, setActiveLang } = useAuth()
+  const { user, activeLang, setActiveLang, plan } = useAuth()
   const [words, setWords] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
   const [addingId, setAddingId] = useState(null)
   const [myWords, setMyWords] = useState(new Set())
+
+  const tapDisabled = plan === 'free'
+  const wt = useWordTap({
+    language: activeLang,
+    userId: user.id,
+    onCreated: (res) => setMyWords(prev => new Set(prev).add(res.word.toLowerCase())),
+  })
 
   useEffect(() => { fetchAll() }, [activeLang]) // eslint-disable-line
 
@@ -167,7 +175,7 @@ export default function DictionaryScreen() {
                   {entry.verb_forms && <VerbForms forms={entry.verb_forms} language={activeLang} />}
 
                   <p style={{ fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'var(--t1)', margin: 0 }}>
-                    {entry.definition}
+                    <TappableText text={entry.definition} idPrefix={`d-def-${entry.id}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
                   </p>
                   {entry.translation_ru && (
                     <div style={{ fontSize: 13, color: 'var(--t2)', fontStyle: 'italic' }}>{entry.translation_ru}</div>
@@ -179,8 +187,19 @@ export default function DictionaryScreen() {
                         Usage patterns
                       </span>
                       {entry.patterns.map((p, i) => (
-                        <PatternRow key={i} pattern={p} word={entry.word} />
+                        <div key={i} style={{
+                          background: 'var(--bg)', borderRadius: 10, padding: '9px 13px',
+                          fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
+                        }}>
+                          <TappablePattern pattern={p} word={entry.word} idPrefix={`d-pat-${entry.id}-${i}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
+                        </div>
                       ))}
+                    </div>
+                  )}
+
+                  {!tapDisabled && (
+                    <div style={{ fontSize: 11.5, color: 'var(--t3)', fontWeight: 600, textAlign: 'center' }}>
+                      Tap any word to add it as a card
                     </div>
                   )}
 
@@ -203,6 +222,8 @@ export default function DictionaryScreen() {
           )
         })}
       </div>
+
+      <CreateCardBar selected={wt.selected} phase={wt.phase} result={wt.result} onConfirm={wt.confirm} onClose={wt.clear} />
 
       <NavBar />
     </div>
@@ -230,25 +251,3 @@ function VerbForms({ forms, language }) {
   )
 }
 
-function PatternRow({ pattern, word }) {
-  const hasMarkers = /<<[^>]+>>/.test(pattern)
-  const parts = hasMarkers
-    ? pattern.split(/<<([^>]+)>>/)
-    : pattern.split(/(_____+)/)
-
-  return (
-    <div style={{
-      background: 'var(--bg)', borderRadius: 10, padding: '9px 13px',
-      fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
-    }}>
-      {parts.map((part, i) => {
-        const isSlot = hasMarkers ? i % 2 === 1 : /^_____+$/.test(part)
-        if (isSlot) {
-          const display = hasMarkers ? part : word
-          return <span key={i} style={{ color: 'var(--acc)', fontWeight: 800 }}>{display}</span>
-        }
-        return <span key={i}>{part}</span>
-      })}
-    </div>
-  )
-}

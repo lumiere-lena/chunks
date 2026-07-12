@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
+import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -17,11 +18,18 @@ const BADGE_STYLES = {
 }
 
 export default function LibraryScreen() {
-  const { user, activeLang, setActiveLang } = useAuth()
+  const { user, activeLang, setActiveLang, plan } = useAuth()
   const [cards, setCards] = useState([])
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
+
+  const tapDisabled = plan === 'free'
+  const wt = useWordTap({
+    language: activeLang,
+    userId: user.id,
+    onCreated: () => fetchCards(),
+  })
 
   useEffect(() => { fetchCards() }, [activeLang]) // eslint-disable-line
 
@@ -186,7 +194,7 @@ export default function LibraryScreen() {
                   {card.verb_forms && <VerbForms forms={card.verb_forms} language={activeLang} />}
 
                   <p style={{ fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'var(--t1)', margin: 0 }}>
-                    {card.definition}
+                    <TappableText text={card.definition} idPrefix={`l-def-${card.id}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
                   </p>
                   {card.translation_ru && (
                     <div style={{ fontSize: 13, color: 'var(--t2)', fontStyle: 'italic' }}>{card.translation_ru}</div>
@@ -198,8 +206,19 @@ export default function LibraryScreen() {
                         Usage patterns
                       </span>
                       {card.patterns.map((p, i) => (
-                        <PatternRow key={i} pattern={p} word={card.word} />
+                        <div key={i} style={{
+                          background: 'var(--bg)', borderRadius: 10, padding: '9px 13px',
+                          fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
+                        }}>
+                          <TappablePattern pattern={p} word={card.word} idPrefix={`l-pat-${card.id}-${i}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
+                        </div>
                       ))}
+                    </div>
+                  )}
+
+                  {!tapDisabled && (
+                    <div style={{ fontSize: 11.5, color: 'var(--t3)', fontWeight: 600, textAlign: 'center' }}>
+                      Tap any word to add it as a card
                     </div>
                   )}
                 </div>
@@ -208,6 +227,8 @@ export default function LibraryScreen() {
           )
         })}
       </div>
+
+      <CreateCardBar selected={wt.selected} phase={wt.phase} result={wt.result} onConfirm={wt.confirm} onClose={wt.clear} />
 
       <NavBar />
     </div>
@@ -235,25 +256,3 @@ function VerbForms({ forms, language }) {
   )
 }
 
-function PatternRow({ pattern, word }) {
-  const hasMarkers = /<<[^>]+>>/.test(pattern)
-  const parts = hasMarkers
-    ? pattern.split(/<<([^>]+)>>/)
-    : pattern.split(/(_____+)/)
-
-  return (
-    <div style={{
-      background: 'var(--bg)', borderRadius: 10, padding: '9px 13px',
-      fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
-    }}>
-      {parts.map((part, i) => {
-        const isSlot = hasMarkers ? i % 2 === 1 : /^_____+$/.test(part)
-        if (isSlot) {
-          const display = hasMarkers ? part : word
-          return <span key={i} style={{ color: 'var(--acc)', fontWeight: 800 }}>{display}</span>
-        }
-        return <span key={i}>{part}</span>
-      })}
-    </div>
-  )
-}
