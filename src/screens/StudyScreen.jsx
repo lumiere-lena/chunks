@@ -308,6 +308,8 @@ export default function StudyScreen() {
                 </p>
               </div>
 
+              <WordHint word={card.word} />
+
               <div style={{ height: 1, background: 'var(--border)' }} />
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -379,6 +381,33 @@ function VerbForms({ forms, language }) {
           <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--acc)' }}>{value}</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+function WordHint({ word }) {
+  const chars = [...word]
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 7 }}>
+      {chars.map((ch, i) => {
+        if (ch === ' ') return <span key={i} style={{ width: 12 }} />
+        if (i === 0) {
+          return (
+            <span key={i} style={{
+              fontSize: 22, fontWeight: 800, color: 'var(--acc)',
+              lineHeight: 1, letterSpacing: '-0.02em',
+            }}>
+              {ch}
+            </span>
+          )
+        }
+        return (
+          <span key={i} style={{
+            display: 'inline-block', width: 15, height: 20,
+            borderBottom: '2.5px solid var(--t2)', opacity: 0.4,
+          }} />
+        )
+      })}
     </div>
   )
 }
