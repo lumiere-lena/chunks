@@ -46,7 +46,7 @@ First, determine the correct dictionary headword:
 Return ONLY valid JSON with this exact shape, no other text:
 {
   "word": "the corrected dictionary headword",
-  "pos": "part of speech, e.g. noun (m), verb, adjective",
+  "pos": "part of speech — see the PART OF SPEECH rules below",
   "definition": "1-2 sentence definition in ${langName}, direct meaning only — no meta-phrases like 'This term describes…' or 'It is a word that…'",${isSr ? '\n  "translation_ru": "short Russian translation (1-3 words, e.g. \'бежать\', \'важный\', \'дом\')",' : ''}
   "patterns": [
     "short phrase with the target word in <<double angle brackets>>",
@@ -56,7 +56,19 @@ Return ONLY valid JSON with this exact shape, no other text:
   "verb_forms": null
 }
 
-VERB FORMS — only include if pos is "verb" (or starts with "verb"):
+PART OF SPEECH — the "pos" field:
+${isSr
+  ? `Write it in Serbian, using EXACTLY one of these terms (lowercase):
+  imenica (noun), glagol (verb), pridev (adjective), prilog (adverb),
+  zamenica (pronoun), predlog (preposition), veznik (conjunction),
+  broj (numeral), rečca (particle), uzvik (interjection).
+  For nouns, append the grammatical gender in parentheses:
+  (m) muški rod, (ž) ženski rod, (s) srednji rod — e.g. "imenica (m)", "imenica (ž)", "imenica (s)".
+  Do NOT use English part-of-speech names like "noun", "verb" or "adjective".`
+  : `Write it in English, using EXACTLY one of these terms (lowercase):
+  noun, verb, adjective, adverb, pronoun, preposition, conjunction, numeral, particle, interjection.`}
+
+VERB FORMS — only include for verbs (Serbian pos "glagol", English pos "verb"):
 ${langName === 'English'
   ? `For English verbs, set "verb_forms" to an object with three forms:
   { "v1": "base form", "v2": "past simple", "v3": "past participle" }
