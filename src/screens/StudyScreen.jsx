@@ -78,6 +78,7 @@ export default function StudyScreen() {
   const [loading, setLoading] = useState(true)
   const [results, setResults] = useState([])
   const [done, setDone] = useState(false)
+  const [remainingCount, setRemainingCount] = useState(0)
 
   useEffect(() => { loadCards() }, []) // eslint-disable-line
 
@@ -93,7 +94,9 @@ export default function StudyScreen() {
 
     setLoading(false)
     if (!error && data?.length) {
-      setCards([...data].sort(() => Math.random() - 0.5))
+      const shuffled = [...data].sort(() => Math.random() - 0.5)
+      setCards(shuffled.slice(0, 10))
+      setRemainingCount(Math.max(0, data.length - 10))
     } else {
       setDone(true)
     }
@@ -149,6 +152,36 @@ export default function StudyScreen() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {remainingCount > 0 && (
+            <div style={{
+              background: 'var(--s1)', border: '1.5px solid var(--acc)', borderRadius: 18,
+              padding: '16px 18px', width: '100%', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>
+                {remainingCount} more card{remainingCount !== 1 ? 's' : ''} due
+              </div>
+              <button
+                onClick={() => {
+                  setCards([])
+                  setIndex(0)
+                  setRevealed(false)
+                  setResults([])
+                  setDone(false)
+                  setLoading(true)
+                  setRemainingCount(0)
+                  loadCards()
+                }}
+                style={{
+                  marginTop: 10, background: 'var(--acc)', color: 'white', border: 'none',
+                  borderRadius: 12, padding: '11px 20px', fontSize: 15, fontWeight: 700,
+                  fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Study more
+              </button>
             </div>
           )}
 
