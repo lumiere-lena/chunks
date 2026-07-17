@@ -446,17 +446,45 @@ function WordInput({ word, onSolved }) {
     return () => clearTimeout(t)
   }, [word])
 
-  function handleChange(e) {
-    const cleaned = [...e.target.value].filter(isLetter).slice(0, letters.length)
-    setTyped(cleaned.join(''))
-    if (cleaned.length === letters.length && !solvedRef.current) {
-      const allCorrect = letters.every((ch, i) => fold(cleaned[i]) === fold(ch))
-      if (allCorrect) {
-        solvedRef.current = true
-        setTimeout(() => onSolved(), 320)
-      }
+  function checkSolve(str) {
+    const cleaned = [...str].filter(isLetter)
+    if (cleaned.length === letters.length && !solvedRef.current
+        && letters.every((ch, i) => fold(cleaned[i]) === fold(ch))) {
+      solvedRef.current = true
+      setTimeout(() => onSolved(), 320)
     }
   }
+
+  function handleChange(e) {
+    const next = [...e.target.value].filter(isLetter).slice(0, letters.length).join('')
+    setTyped(next)
+    checkSolve(next)
+  }
+
+  // Let the user just start typing on a physical keyboard without tapping a cell
+  // first. Ignored while a real text field is focused (e.g. the hidden input on
+  // mobile handles its own onChange there).
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const ae = document.activeElement
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return
+      if (e.key === 'Backspace') {
+        e.preventDefault()
+        setTyped(prev => prev.slice(0, -1))
+      } else if (e.key.length === 1 && isLetter(e.key)) {
+        e.preventDefault()
+        setTyped(prev => {
+          if (prev.length >= letters.length) return prev
+          const next = prev + e.key
+          checkSolve(next)
+          return next
+        })
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [word]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const RED = 'oklch(55% 0.2 25)'
   let li = -1
