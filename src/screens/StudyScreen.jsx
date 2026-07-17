@@ -110,7 +110,10 @@ export default function StudyScreen() {
   async function handleRating(rating) {
     const card = cards[index]
     const updates = applyRating(card, rating)
-    await supabase.from('cards').update(updates).eq('id', card.id)
+    await Promise.all([
+      supabase.from('cards').update(updates).eq('id', card.id),
+      supabase.from('reviews').insert({ card_id: card.id, user_id: user.id, rating }),
+    ])
 
     const newResults = [...results, { word: card.word, rating, interval: updates.interval_days }]
     if (index + 1 >= cards.length) {

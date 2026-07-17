@@ -47,7 +47,8 @@ Return ONLY valid JSON with this exact shape, no other text:
 {
   "word": "the corrected dictionary headword",
   "pos": "part of speech — see the PART OF SPEECH rules below",
-  "definition": "1-2 sentence definition in ${langName}, direct meaning only — no meta-phrases like 'This term describes…' or 'It is a word that…'",${isSr ? '\n  "translation_ru": "short Russian translation (1-3 words, e.g. \'бежать\', \'важный\', \'дом\')",' : ''}
+  "definition": "1-2 sentence definition in ${langName}, direct meaning only — no meta-phrases like 'This term describes…' or 'It is a word that…'",
+  "translation_ru": "short Russian translation (1-3 words, e.g. 'бежать', 'важный', 'дом')",
   "patterns": [
     "short phrase with the target word in <<double angle brackets>>",
     "another pattern with a different grammatical form in <<brackets>>",
@@ -84,7 +85,8 @@ For non-verbs, set "verb_forms" to null.
 Rules:
 - "word" is the cleaned headword, NOT the raw input
 - definition must be written in ${langName} (the language being learned)
-- Write the definition directly — never start with meta-phrases like "This term describes", "This word refers to", "It is a word that", "A term used to". Jump straight to the meaning.${isSr ? '\n- "translation_ru" is a short Russian translation (1-3 words), required for Serbian cards' : ''}
+- Write the definition directly — never start with meta-phrases like "This term describes", "This word refers to", "It is a word that", "A term used to". Jump straight to the meaning.
+- "translation_ru" is a short Russian translation (1-3 words), required for every card
 - the definition must NOT contain the headword or any word sharing its root/stem
   (e.g. for "greatness" do not use "great", "greatly"; for "decision" do not use "decide").
   Explain the meaning using different vocabulary — paraphrase instead.

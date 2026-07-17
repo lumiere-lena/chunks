@@ -17,6 +17,7 @@ export default function HomeScreen() {
 
   const [stats, setStats] = useState({ new: 0, learning: 0, mastered: 0 })
   const [dueCount, setDueCount] = useState(0)
+  const [learnedToday, setLearnedToday] = useState([])
   const [word, setWord] = useState('')
   const [statsLoading, setStatsLoading] = useState(true)
 
@@ -29,8 +30,10 @@ export default function HomeScreen() {
   async function fetchStats() {
     setStatsLoading(true)
     const today = new Date().toISOString().split('T')[0]
+    const dayStart = new Date()
+    dayStart.setHours(0, 0, 0, 0)
 
-    const [{ data: cards }, { count: due }] = await Promise.all([
+    const [{ data: cards }, { count: due }, { data: reviews }] = await Promise.all([
       supabase
         .from('cards')
         .select('status')
@@ -42,12 +45,30 @@ export default function HomeScreen() {
         .eq('user_id', user.id)
         .eq('language', activeLang)
         .lte('next_review_at', today),
+      supabase
+        .from('reviews')
+        .select('card_id, reviewed_at, cards!inner(word, translation_ru, language)')
+        .eq('user_id', user.id)
+        .eq('cards.language', activeLang)
+        .gte('reviewed_at', dayStart.toISOString())
+        .order('reviewed_at', { ascending: false }),
     ])
 
     const counts = { new: 0, learning: 0, mastered: 0 }
     cards?.forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++ })
     setStats(counts)
     setDueCount(due ?? 0)
+
+    // Distinct cards reviewed today, most recent first
+    const seen = new Set()
+    const learned = []
+    for (const r of reviews ?? []) {
+      if (seen.has(r.card_id)) continue
+      seen.add(r.card_id)
+      learned.push({ word: r.cards.word, translation: r.cards.translation_ru })
+    }
+    setLearnedToday(learned)
+
     setStatsLoading(false)
   }
 
@@ -169,6 +190,30 @@ export default function HomeScreen() {
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)' }}>All caught up!</div>
               <div style={{ fontSize: 13, color: 'var(--t2)', marginTop: 3 }}>No cards due today. Come back tomorrow.</div>
+            </div>
+          </div>
+        )}
+
+        {/* Learned today */}
+        {!statsLoading && learnedToday.length > 0 && (
+          <div style={{ background: 'var(--s1)', borderRadius: 18, padding: '16px 18px' }}>
+            <div className="micro" style={{ marginBottom: 12 }}>
+              Learned today · {learnedToday.length}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+              {learnedToday.slice(0, 6).map((w, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', flexShrink: 0 }}>{w.word}</span>
+                  {w.translation && (
+                    <span style={{ fontSize: 13.5, color: 'var(--t2)', textAlign: 'right' }}>{w.translation}</span>
+                  )}
+                </div>
+              ))}
+              {learnedToday.length > 6 && (
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--t3)', marginTop: 2 }}>
+                  +{learnedToday.length - 6} more
+                </div>
+              )}
             </div>
           </div>
         )}
