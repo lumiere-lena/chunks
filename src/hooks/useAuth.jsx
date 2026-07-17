@@ -10,27 +10,55 @@ export function AuthProvider({ children }) {
   const [langLoading, setLangLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) loadUserData(session.user.id)
-    })
+    let done = false
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        done = true
+        setUser(session?.user ?? null)
+        if (session?.user) loadUserData(session.user.id)
+        else setLangLoading(false)
+      })
+      .catch(() => {
+        // getSession can reject/hang (e.g. cross-tab refresh lock). Fall back to
+        // logged-out so the app shows the login screen instead of a blank page.
+        done = true
+        setUser(null)
+        setLangLoading(false)
+      })
+
+    // Safety net: never stay stuck on `undefined` (blank screen) if getSession
+    // neither resolves nor rejects within a few seconds.
+    const timeout = setTimeout(() => {
+      if (!done) {
+        setUser(u => (u === undefined ? null : u))
+        setLangLoading(false)
+      }
+    }, 5000)
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      done = true
       setUser(session?.user ?? null)
       if (session?.user) loadUserData(session.user.id)
       else { setActiveLangState(null); setPlan(null); setLangLoading(false) }
     })
-    return () => subscription.unsubscribe()
+    return () => { clearTimeout(timeout); subscription.unsubscribe() }
   }, [])
 
   async function loadUserData(userId) {
-    const { data } = await supabase
-      .from('users')
-      .select('active_language, plan')
-      .eq('id', userId)
-      .single()
-    if (data?.active_language) setActiveLangState(data.active_language)
-    setPlan(data?.plan ?? 'free')
-    setLangLoading(false)
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('active_language, plan')
+        .eq('id', userId)
+        .single()
+      if (data?.active_language) setActiveLangState(data.active_language)
+      setPlan(data?.plan ?? 'free')
+    } catch {
+      setPlan('free')
+    } finally {
+      setLangLoading(false)
+    }
   }
 
   async function setActiveLang(lang) {
