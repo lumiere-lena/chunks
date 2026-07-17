@@ -18,6 +18,7 @@ export default function HomeScreen() {
   const [stats, setStats] = useState({ new: 0, learning: 0, mastered: 0 })
   const [dueCount, setDueCount] = useState(0)
   const [learnedToday, setLearnedToday] = useState([])
+  const [showAllLearned, setShowAllLearned] = useState(false)
   const [word, setWord] = useState('')
   const [statsLoading, setStatsLoading] = useState(true)
 
@@ -201,7 +202,7 @@ export default function HomeScreen() {
               Learned today · {learnedToday.length}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-              {learnedToday.slice(0, 6).map((w, i) => (
+              {(showAllLearned ? learnedToday : learnedToday.slice(0, 6)).map((w, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14 }}>
                   <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', flexShrink: 0 }}>{w.word}</span>
                   {w.translation && (
@@ -210,9 +211,16 @@ export default function HomeScreen() {
                 </div>
               ))}
               {learnedToday.length > 6 && (
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--t3)', marginTop: 2 }}>
-                  +{learnedToday.length - 6} more
-                </div>
+                <button
+                  onClick={() => setShowAllLearned(v => !v)}
+                  style={{
+                    background: 'none', border: 'none', fontFamily: 'inherit', cursor: 'pointer',
+                    fontSize: 12.5, fontWeight: 700, color: 'var(--acc)', padding: '2px 0', marginTop: 2,
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  {showAllLearned ? 'Show less' : `+${learnedToday.length - 6} more`}
+                </button>
               )}
             </div>
           </div>

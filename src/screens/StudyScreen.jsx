@@ -84,8 +84,33 @@ export default function StudyScreen() {
   const [done, setDone] = useState(false)
   const [remainingCount, setRemainingCount] = useState(0)
   const [peeked, setPeeked] = useState(false)
+  const [learnedToday, setLearnedToday] = useState([])
 
   useEffect(() => { loadCards() }, []) // eslint-disable-line
+
+  useEffect(() => {
+    if (done) fetchLearnedToday()
+  }, [done]) // eslint-disable-line
+
+  async function fetchLearnedToday() {
+    const dayStart = new Date()
+    dayStart.setHours(0, 0, 0, 0)
+    const { data } = await supabase
+      .from('reviews')
+      .select('card_id, reviewed_at, cards!inner(word, translation_ru, language)')
+      .eq('user_id', user.id)
+      .eq('cards.language', activeLang)
+      .gte('reviewed_at', dayStart.toISOString())
+      .order('reviewed_at', { ascending: false })
+    const seen = new Set()
+    const list = []
+    for (const r of data ?? []) {
+      if (seen.has(r.card_id)) continue
+      seen.add(r.card_id)
+      list.push({ word: r.cards.word, translation: r.cards.translation_ru })
+    }
+    setLearnedToday(list)
+  }
 
   async function loadCards() {
     const today = new Date().toISOString().split('T')[0]
@@ -158,6 +183,25 @@ export default function StudyScreen() {
                   <div key={r.key} style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 26, fontWeight: 800, color: r.color }}>{counts[r.key]}</div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginTop: 2 }}>{r.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {learnedToday.length > 0 && (
+            <div style={{ width: '100%' }}>
+              <div className="micro" style={{ marginBottom: 10 }}>Learned today · {learnedToday.length}</div>
+              <div style={{
+                background: 'var(--s1)', borderRadius: 20, padding: '16px 18px',
+                display: 'flex', flexDirection: 'column', gap: 11,
+              }}>
+                {learnedToday.map((w, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', flexShrink: 0 }}>{w.word}</span>
+                    {w.translation && (
+                      <span style={{ fontSize: 13.5, color: 'var(--t2)', textAlign: 'right' }}>{w.translation}</span>
+                    )}
                   </div>
                 ))}
               </div>
