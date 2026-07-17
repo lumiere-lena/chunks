@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
@@ -327,7 +327,7 @@ export default function StudyScreen() {
                 </p>
               </div>
 
-              <WordHint word={card.word} />
+              <WordInput word={card.word} onSolved={() => setRevealed(true)} />
 
               {card.translation_ru && (
                 <TranslationPeek text={card.translation_ru} peeked={peeked} onPeek={() => setPeeked(true)} />
@@ -420,27 +420,91 @@ function VerbForms({ forms, language }) {
   )
 }
 
-function WordHint({ word }) {
+const DIACRITIC_FOLD = { 'č': 'c', 'ć': 'c', 'đ': 'd', 'š': 's', 'ž': 'z' }
+const isLetter = (c) => /\p{L}/u.test(c)
+function fold(ch) {
+  const l = ch.toLowerCase()
+  return DIACRITIC_FOLD[l] ?? l
+}
+
+// Type-the-word input. One underlined slot per letter (length is visible);
+// wrong letters turn red immediately; a fully correct entry auto-reveals.
+// Diacritics are matched leniently (c=č, s=š, z=ž, d=đ). Spaces/hyphens are
+// shown as separators and skipped by the typing cursor.
+function WordInput({ word, onSolved }) {
+  const [typed, setTyped] = useState('')
+  const inputRef = useRef(null)
+  const solvedRef = useRef(false)
+
   const chars = [...word]
+  const letters = chars.filter(isLetter)
+
+  useEffect(() => {
+    setTyped('')
+    solvedRef.current = false
+    const t = setTimeout(() => inputRef.current?.focus(), 60)
+    return () => clearTimeout(t)
+  }, [word])
+
+  function handleChange(e) {
+    const cleaned = [...e.target.value].filter(isLetter).slice(0, letters.length)
+    setTyped(cleaned.join(''))
+    if (cleaned.length === letters.length && !solvedRef.current) {
+      const allCorrect = letters.every((ch, i) => fold(cleaned[i]) === fold(ch))
+      if (allCorrect) {
+        solvedRef.current = true
+        setTimeout(() => onSolved(), 320)
+      }
+    }
+  }
+
+  const RED = 'oklch(55% 0.2 25)'
+  let li = -1
+
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 7 }}>
+    <div
+      onClick={() => inputRef.current?.focus()}
+      style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 6, cursor: 'text', position: 'relative' }}
+    >
+      <input
+        ref={inputRef}
+        value={typed}
+        onChange={handleChange}
+        autoCapitalize="none"
+        autoCorrect="off"
+        autoComplete="off"
+        spellCheck={false}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1, border: 'none', padding: 0 }}
+      />
       {chars.map((ch, i) => {
-        if (ch === ' ') return <span key={i} style={{ width: 12 }} />
-        if (i === 0) {
-          return (
-            <span key={i} style={{
-              fontSize: 22, fontWeight: 800, color: 'var(--acc)',
-              lineHeight: 1, letterSpacing: '-0.02em',
-            }}>
-              {ch}
-            </span>
-          )
+        if (!isLetter(ch)) {
+          return ch === ' '
+            ? <span key={i} style={{ width: 10 }} />
+            : <span key={i} style={{ fontSize: 20, fontWeight: 700, color: 'var(--t3)', alignSelf: 'center' }}>{ch}</span>
+        }
+        li += 1
+        const idx = li
+        const typedCh = typed[idx]
+        const isCurrent = idx === typed.length
+        let borderColor = 'var(--border)'
+        let textColor = 'var(--t1)'
+        if (typedCh != null) {
+          const ok = fold(typedCh) === fold(ch)
+          textColor = ok ? 'var(--acc)' : RED
+          borderColor = ok ? 'var(--acc)' : RED
+        } else if (isCurrent) {
+          borderColor = 'var(--acc)'
         }
         return (
           <span key={i} style={{
-            display: 'inline-block', width: 15, height: 20,
-            borderBottom: '2.5px solid var(--t2)', opacity: 0.4,
-          }} />
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            minWidth: 24, height: 32, padding: '0 3px',
+            borderBottom: `2.5px solid ${borderColor}`,
+            fontSize: 20, fontWeight: 800, color: textColor, lineHeight: 1,
+            transition: 'color 0.1s, border-color 0.1s',
+          }}>
+            {typedCh ?? ''}
+          </span>
         )
       })}
     </div>
