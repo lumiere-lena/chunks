@@ -83,6 +83,7 @@ export default function StudyScreen() {
   const [results, setResults] = useState([])
   const [done, setDone] = useState(false)
   const [remainingCount, setRemainingCount] = useState(0)
+  const [peeked, setPeeked] = useState(false)
 
   useEffect(() => { loadCards() }, []) // eslint-disable-line
 
@@ -119,6 +120,7 @@ export default function StudyScreen() {
       setResults(newResults)
       setIndex(i => i + 1)
       setRevealed(false)
+      setPeeked(false)
     }
   }
 
@@ -324,6 +326,10 @@ export default function StudyScreen() {
 
               <WordHint word={card.word} />
 
+              {card.translation_ru && (
+                <TranslationPeek text={card.translation_ru} peeked={peeked} onPeek={() => setPeeked(true)} />
+              )}
+
               <div style={{ height: 1, background: 'var(--border)' }} />
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -435,6 +441,40 @@ function WordHint({ word }) {
         )
       })}
     </div>
+  )
+}
+
+function TranslationPeek({ text, peeked, onPeek }) {
+  const eye = (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  )
+
+  if (peeked) {
+    return (
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
+        color: 'var(--t2)', fontSize: 14, fontStyle: 'italic',
+      }}>
+        <span style={{ color: 'var(--t3)', display: 'flex' }}>{eye}</span>
+        {text}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={onPeek}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7, alignSelf: 'flex-start',
+        background: 'var(--s2)', border: 'none', borderRadius: 10, padding: '7px 12px',
+        color: 'var(--t2)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+      }}
+    >
+      {eye}
+      Peek translation
+    </button>
   )
 }
 
