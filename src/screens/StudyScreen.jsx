@@ -85,6 +85,8 @@ export default function StudyScreen() {
   const [remainingCount, setRemainingCount] = useState(0)
   const [peeked, setPeeked] = useState(false)
   const [learnedToday, setLearnedToday] = useState([])
+  // Grade for the current card, decided by how the user answered (typed / gave up).
+  const [autoGrade, setAutoGrade] = useState(null)
 
   useEffect(() => { loadCards() }, []) // eslint-disable-line
 
@@ -149,6 +151,7 @@ export default function StudyScreen() {
       setIndex(i => i + 1)
       setRevealed(false)
       setPeeked(false)
+      setAutoGrade(null)
     }
   }
 
@@ -221,6 +224,8 @@ export default function StudyScreen() {
                   setCards([])
                   setIndex(0)
                   setRevealed(false)
+                  setPeeked(false)
+                  setAutoGrade(null)
                   setResults([])
                   setDone(false)
                   setLoading(true)
@@ -371,7 +376,10 @@ export default function StudyScreen() {
                 </p>
               </div>
 
-              <WordInput word={card.word} onSolved={() => setRevealed(true)} />
+              <WordInput
+                word={card.word}
+                onSolved={(rating) => { setAutoGrade(rating); setRevealed(true) }}
+              />
 
               {card.translation_ru && (
                 <TranslationPeek text={card.translation_ru} peeked={peeked} onPeek={() => setPeeked(true)} />
@@ -404,37 +412,46 @@ export default function StudyScreen() {
 
       {/* Action zone */}
       {!revealed ? (
-        <div style={{ padding: '0 18px 22px', flexShrink: 0 }}>
-          <button className="btn btn-acc" onClick={() => setRevealed(true)}>
+        <div style={{ padding: '0 18px 22px', flexShrink: 0, display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => { setAutoGrade('easy'); setRevealed(true) }}
+            style={{
+              flex: 1, padding: '15px 6px', borderRadius: 14,
+              border: '1.5px solid var(--border)', background: 'var(--s1)',
+              color: 'var(--t1)', fontFamily: 'inherit', fontSize: 15, fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            I knew it
+          </button>
+          <button
+            className="btn btn-acc"
+            style={{ flex: 1 }}
+            onClick={() => { setAutoGrade('hard'); setRevealed(true) }}
+          >
             Show word
           </button>
         </div>
       ) : (
         <div style={{
           padding: '10px 18px 22px', flexShrink: 0,
-          display: 'flex', gap: 8,
+          display: 'flex', flexDirection: 'column', gap: 10,
         }}>
-          {RATINGS.map(r => (
-            <button
-              key={r.key}
-              onClick={() => handleRating(r.key)}
-              style={{
-                flex: 1, padding: '13px 6px', borderRadius: 14,
-                border: `1.5px solid color-mix(in oklch, ${r.color} 25%, transparent)`,
-                background: `color-mix(in oklch, ${r.color} 8%, transparent)`,
-                color: r.color,
-                fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                cursor: 'pointer',
-              }}
-            >
-              {r.icon}
-              {r.label}
-              <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.6 }}>
-                {previewInterval(r.key)}
-              </span>
-            </button>
-          ))}
+          {autoGrade && (() => {
+            const g = RATINGS.find(r => r.key === autoGrade)
+            return (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                fontSize: 13.5, fontWeight: 700, color: g.color,
+              }}>
+                {g.icon}
+                {g.label} · next in {previewInterval(autoGrade)}
+              </div>
+            )
+          })()}
+          <button className="btn btn-acc" onClick={() => handleRating(autoGrade)}>
+            Next
+          </button>
         </div>
       )}
 
@@ -479,6 +496,7 @@ function WordInput({ word, onSolved }) {
   const [typed, setTyped] = useState('')
   const inputRef = useRef(null)
   const solvedRef = useRef(false)
+  const mistakeRef = useRef(false) // any wrong keystroke during this attempt
 
   const chars = [...word]
   const letters = chars.filter(isLetter)
@@ -486,23 +504,30 @@ function WordInput({ word, onSolved }) {
   useEffect(() => {
     setTyped('')
     solvedRef.current = false
+    mistakeRef.current = false
     const t = setTimeout(() => inputRef.current?.focus(), 60)
     return () => clearTimeout(t)
   }, [word])
 
-  function checkSolve(str) {
+  // Flag a mistake if any entered character (ignoring diacritics) is wrong, then
+  // auto-reveal once the whole word is correct — Easy if flawless, else OK.
+  function flagAndCheck(str) {
     const cleaned = [...str].filter(isLetter)
+    if (cleaned.some((ch, i) => fold(ch) !== fold(letters[i]))) {
+      mistakeRef.current = true
+    }
     if (cleaned.length === letters.length && !solvedRef.current
         && letters.every((ch, i) => fold(cleaned[i]) === fold(ch))) {
       solvedRef.current = true
-      setTimeout(() => onSolved(), 320)
+      const rating = mistakeRef.current ? 'ok' : 'easy'
+      setTimeout(() => onSolved(rating), 320)
     }
   }
 
   function handleChange(e) {
     const next = [...e.target.value].filter(isLetter).slice(0, letters.length).join('')
     setTyped(next)
-    checkSolve(next)
+    flagAndCheck(next)
   }
 
   // Let the user just start typing on a physical keyboard without tapping a cell
@@ -521,7 +546,7 @@ function WordInput({ word, onSolved }) {
         setTyped(prev => {
           if (prev.length >= letters.length) return prev
           const next = prev + e.key
-          checkSolve(next)
+          flagAndCheck(next)
           return next
         })
       }
