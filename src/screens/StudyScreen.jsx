@@ -473,7 +473,7 @@ function TranslationPeek({ text, peeked, onPeek }) {
       }}
     >
       {eye}
-      Peek translation
+      Translation
     </button>
   )
 }
