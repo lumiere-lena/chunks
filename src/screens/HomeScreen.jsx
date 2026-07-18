@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
 import { normalizeWord } from '../lib/normalizeWord'
+import { groupReviewsBySession, formatSessionTime } from '../lib/learnedToday'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -17,8 +18,8 @@ export default function HomeScreen() {
 
   const [stats, setStats] = useState({ new: 0, learning: 0, mastered: 0 })
   const [dueCount, setDueCount] = useState(0)
-  const [learnedToday, setLearnedToday] = useState([])
-  const [showAllLearned, setShowAllLearned] = useState(false)
+  const [learnedSessions, setLearnedSessions] = useState([])
+  const [showAllSessions, setShowAllSessions] = useState(false)
   const [word, setWord] = useState('')
   const [statsLoading, setStatsLoading] = useState(true)
 
@@ -60,15 +61,7 @@ export default function HomeScreen() {
     setStats(counts)
     setDueCount(due ?? 0)
 
-    // Distinct cards reviewed today, most recent first
-    const seen = new Set()
-    const learned = []
-    for (const r of reviews ?? []) {
-      if (seen.has(r.card_id)) continue
-      seen.add(r.card_id)
-      learned.push({ word: r.cards.word, translation: r.cards.translation_ru })
-    }
-    setLearnedToday(learned)
+    setLearnedSessions(groupReviewsBySession(reviews))
 
     setStatsLoading(false)
   }
@@ -195,31 +188,26 @@ export default function HomeScreen() {
           </div>
         )}
 
-        {/* Learned today */}
-        {!statsLoading && learnedToday.length > 0 && (
+        {/* Learned today, grouped by session (latest first) */}
+        {!statsLoading && learnedSessions.length > 0 && (
           <div style={{ background: 'var(--s1)', borderRadius: 18, padding: '16px 18px' }}>
-            <div className="micro" style={{ marginBottom: 12 }}>
-              Learned today · {learnedToday.length}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-              {(showAllLearned ? learnedToday : learnedToday.slice(0, 6)).map((w, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14 }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', flexShrink: 0 }}>{w.word}</span>
-                  {w.translation && (
-                    <span style={{ fontSize: 13.5, color: 'var(--t2)', textAlign: 'right' }}>{w.translation}</span>
-                  )}
-                </div>
+            <div className="micro" style={{ marginBottom: 14 }}>Learned today</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {(showAllSessions ? learnedSessions : learnedSessions.slice(0, 1)).map((s, si) => (
+                <SessionGroup key={si} session={s} />
               ))}
-              {learnedToday.length > 6 && (
+              {learnedSessions.length > 1 && (
                 <button
-                  onClick={() => setShowAllLearned(v => !v)}
+                  onClick={() => setShowAllSessions(v => !v)}
                   style={{
                     background: 'none', border: 'none', fontFamily: 'inherit', cursor: 'pointer',
-                    fontSize: 12.5, fontWeight: 700, color: 'var(--acc)', padding: '2px 0', marginTop: 2,
+                    fontSize: 12.5, fontWeight: 700, color: 'var(--acc)', padding: '2px 0',
                     alignSelf: 'flex-start',
                   }}
                 >
-                  {showAllLearned ? 'Show less' : `+${learnedToday.length - 6} more`}
+                  {showAllSessions
+                    ? 'Show less'
+                    : `Show ${learnedSessions.length - 1} earlier session${learnedSessions.length - 1 !== 1 ? 's' : ''}`}
                 </button>
               )}
             </div>
@@ -283,6 +271,24 @@ export default function HomeScreen() {
       </div>
 
       <NavBar />
+    </div>
+  )
+}
+
+function SessionGroup({ session }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--t3)' }}>
+        {formatSessionTime(session.at)} · {session.words.length}
+      </div>
+      {session.words.map((w, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', flexShrink: 0 }}>{w.word}</span>
+          {w.translation && (
+            <span style={{ fontSize: 13.5, color: 'var(--t2)', textAlign: 'right' }}>{w.translation}</span>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

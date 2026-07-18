@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
+import { groupReviewsBySession, formatSessionTime } from '../lib/learnedToday'
 
 // SM-2-ish SRS — 3-button: hard / ok / easy
 // First reviews use fixed intervals (1 → 1 → 3 → 7), then ease_factor kicks in
@@ -84,7 +85,7 @@ export default function StudyScreen() {
   const [done, setDone] = useState(false)
   const [remainingCount, setRemainingCount] = useState(0)
   const [peeked, setPeeked] = useState(false)
-  const [learnedToday, setLearnedToday] = useState([])
+  const [learnedSessions, setLearnedSessions] = useState([])
   // Grade for the current card, decided by how the user answered (typed / gave up).
   const [autoGrade, setAutoGrade] = useState(null)
 
@@ -104,14 +105,7 @@ export default function StudyScreen() {
       .eq('cards.language', activeLang)
       .gte('reviewed_at', dayStart.toISOString())
       .order('reviewed_at', { ascending: false })
-    const seen = new Set()
-    const list = []
-    for (const r of data ?? []) {
-      if (seen.has(r.card_id)) continue
-      seen.add(r.card_id)
-      list.push({ word: r.cards.word, translation: r.cards.translation_ru })
-    }
-    setLearnedToday(list)
+    setLearnedSessions(groupReviewsBySession(data))
   }
 
   async function loadCards() {
@@ -192,19 +186,26 @@ export default function StudyScreen() {
             </div>
           )}
 
-          {learnedToday.length > 0 && (
+          {learnedSessions.length > 0 && (
             <div style={{ width: '100%' }}>
-              <div className="micro" style={{ marginBottom: 10 }}>Learned today · {learnedToday.length}</div>
+              <div className="micro" style={{ marginBottom: 10 }}>Learned today</div>
               <div style={{
                 background: 'var(--s1)', borderRadius: 20, padding: '16px 18px',
-                display: 'flex', flexDirection: 'column', gap: 11,
+                display: 'flex', flexDirection: 'column', gap: 18,
               }}>
-                {learnedToday.map((w, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14 }}>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', flexShrink: 0 }}>{w.word}</span>
-                    {w.translation && (
-                      <span style={{ fontSize: 13.5, color: 'var(--t2)', textAlign: 'right' }}>{w.translation}</span>
-                    )}
+                {learnedSessions.map((s, si) => (
+                  <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--t3)' }}>
+                      {formatSessionTime(s.at)} · {s.words.length}
+                    </div>
+                    {s.words.map((w, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', flexShrink: 0 }}>{w.word}</span>
+                        {w.translation && (
+                          <span style={{ fontSize: 13.5, color: 'var(--t2)', textAlign: 'right' }}>{w.translation}</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
