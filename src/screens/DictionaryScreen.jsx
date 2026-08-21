@@ -3,6 +3,8 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
 import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
+import VerbForms from '../components/VerbForms'
+import { headwordSize } from '../lib/headword'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -167,15 +169,18 @@ export default function DictionaryScreen() {
                   <div style={{ height: 1, background: 'var(--border)' }} />
 
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--acc)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                    <div style={{
+                      fontSize: headwordSize(entry.word, 28, 270), fontWeight: 800, color: 'var(--acc)',
+                      letterSpacing: '-0.03em', lineHeight: 1.05, minWidth: 0, overflowWrap: 'anywhere',
+                    }}>
                       {entry.word}
                     </div>
                   </div>
 
-                  {entry.verb_forms && <VerbForms forms={entry.verb_forms} language={activeLang} />}
+                  {entry.verb_forms && <VerbForms forms={entry.verb_forms} language={activeLang} size="sm" />}
 
                   <p style={{ fontSize: 14.5, fontWeight: 500, lineHeight: 1.55, color: 'var(--t1)', margin: 0 }}>
-                    <TappableText text={entry.definition} idPrefix={`d-def-${entry.id}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
+                    <TappableText text={entry.definition} idPrefix={`d-def-${entry.id}`} {...wt.tapProps} disabled={tapDisabled} />
                   </p>
                   {entry.translation_ru && (
                     <div style={{ fontSize: 13, color: 'var(--t2)', fontStyle: 'italic' }}>{entry.translation_ru}</div>
@@ -191,7 +196,7 @@ export default function DictionaryScreen() {
                           background: 'var(--bg)', borderRadius: 10, padding: '9px 13px',
                           fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
                         }}>
-                          <TappablePattern pattern={p} word={entry.word} idPrefix={`d-pat-${entry.id}-${i}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
+                          <TappablePattern pattern={p} word={entry.word} idPrefix={`d-pat-${entry.id}-${i}`} {...wt.tapProps} disabled={tapDisabled} />
                         </div>
                       ))}
                     </div>
@@ -226,27 +231,6 @@ export default function DictionaryScreen() {
       <CreateCardBar selected={wt.selected} phase={wt.phase} result={wt.result} onConfirm={wt.confirm} onClose={wt.clear} />
 
       <NavBar />
-    </div>
-  )
-}
-
-function VerbForms({ forms, language }) {
-  const isEnglish = language === 'en'
-  const entries = isEnglish
-    ? [['V1', forms.v1], ['V2', forms.v2], ['V3', forms.v3]]
-    : [['ja', forms['1sg']], ['oni/one', forms['3pl']]]
-
-  return (
-    <div style={{ display: 'flex', gap: 6 }}>
-      {entries.map(([label, value]) => value && (
-        <div key={label} style={{
-          background: 'var(--bg)', borderRadius: 8, padding: '6px 12px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, flex: 1,
-        }}>
-          <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t3)' }}>{label}</span>
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--acc)' }}>{value}</span>
-        </div>
-      ))}
     </div>
   )
 }

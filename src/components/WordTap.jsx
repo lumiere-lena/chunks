@@ -20,25 +20,29 @@ function tokenize(text) {
   return out
 }
 
-function wordStyle(selected) {
-  return selected
-    ? {
-        color: 'var(--acc)', fontWeight: 800,
-        background: 'color-mix(in oklch, var(--acc) 16%, transparent)',
-        borderRadius: 5, boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone',
-      }
-    : { cursor: 'pointer' }
+const HIGHLIGHT = {
+  background: 'color-mix(in oklch, var(--acc) 16%, transparent)',
+  borderRadius: 5, boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone',
+}
+
+function wordStyle(selected, added) {
+  if (selected) return { color: 'var(--acc)', fontWeight: 800, ...HIGHLIGHT }
+  // Words already turned into cards stay marked for the rest of the screen, so
+  // it is obvious afterwards which ones were added.
+  if (added) return { color: 'var(--acc)', fontWeight: 700, cursor: 'pointer', ...HIGHLIGHT }
+  return { cursor: 'pointer' }
 }
 
 // Plain text (definition) with tappable words.
-export function TappableText({ text, idPrefix, selectedId, onWordTap, disabled }) {
+export function TappableText({ text, idPrefix, selectedId, onWordTap, disabled, addedWords }) {
   if (disabled || !text) return text
   return tokenize(text).map((tok, i) => {
     if (tok.t === 'sep' || SKIP.has(tok.s.toLowerCase())) return <span key={i}>{tok.s}</span>
     const id = `${idPrefix}:${i}`
+    const added = addedWords?.has(tok.s.toLowerCase()) ?? false
     return (
-      <span key={i} onClick={() => onWordTap(tok.s, id)} style={wordStyle(id === selectedId)}>
-        {tok.s}
+      <span key={i} onClick={() => onWordTap(tok.s, id)} style={wordStyle(id === selectedId, added)}>
+        {tok.s}{added && <span style={{ fontSize: '0.72em', verticalAlign: 'super' }}>✓</span>}
       </span>
     )
   })
@@ -46,7 +50,7 @@ export function TappableText({ text, idPrefix, selectedId, onWordTap, disabled }
 
 // A usage pattern. Every non-target word is tappable. The target word (in <<>> or
 // legacy _____) is never tappable: shown accent when `revealed`, as a blank otherwise.
-export function TappablePattern({ pattern, word, idPrefix, selectedId, onWordTap, disabled, revealed = true }) {
+export function TappablePattern({ pattern, word, idPrefix, selectedId, onWordTap, disabled, addedWords, revealed = true }) {
   const hasMarkers = /<<[^>]+>>/.test(pattern)
   const parts = hasMarkers ? pattern.split(/<<([^>]+)>>/) : pattern.split(/(_____+)/)
 
@@ -73,6 +77,7 @@ export function TappablePattern({ pattern, word, idPrefix, selectedId, onWordTap
         selectedId={selectedId}
         onWordTap={onWordTap}
         disabled={disabled}
+        addedWords={addedWords}
       />
     )
   })
@@ -83,6 +88,7 @@ export function useWordTap({ language, userId, onCreated }) {
   const [selected, setSelected] = useState(null) // { word, id }
   const [phase, setPhase] = useState('confirm')   // 'confirm' | 'loading' | 'result'
   const [result, setResult] = useState(null)      // { status, word }
+  const [addedWords, setAddedWords] = useState(() => new Set()) // lowercased, marked in the text
   const timer = useRef(null)
 
   const clear = useCallback(() => {
@@ -106,11 +112,25 @@ export function useWordTap({ language, userId, onCreated }) {
     const res = await createCardFromWord({ word: norm, language, userId })
     setResult(res)
     setPhase('result')
+    if (res.status === 'done' || res.status === 'duplicate') {
+      setAddedWords(prev => {
+        const next = new Set(prev)
+        next.add(selected.word.toLowerCase())
+        next.add(norm.toLowerCase())
+        if (res.word) next.add(res.word.toLowerCase())
+        return next
+      })
+    }
     if (res.status === 'done' && onCreated) onCreated(res)
     timer.current = setTimeout(() => clear(), 2400)
   }, [selected, language, userId, onCreated, clear])
 
-  return { selected, selectedId: selected?.id ?? null, phase, result, selectWord, confirm, clear }
+  return {
+    selected, selectedId: selected?.id ?? null, phase, result, addedWords,
+    selectWord, confirm, clear,
+    // Spread onto every TappableText / TappablePattern.
+    tapProps: { selectedId: selected?.id ?? null, onWordTap: selectWord, addedWords },
+  }
 }
 
 const RESULT_UI = {

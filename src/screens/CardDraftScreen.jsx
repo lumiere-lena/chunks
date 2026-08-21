@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
+import VerbForms from '../components/VerbForms'
+import { headwordSize } from '../lib/headword'
 
 const MODEL = 'gemini'
 
@@ -223,7 +225,10 @@ export default function CardDraftScreen() {
           }}>
             {/* Word + POS pill */}
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-              <div style={{ fontSize: 40, fontWeight: 800, color: 'var(--acc)', letterSpacing: '-0.035em', lineHeight: 1 }}>
+              <div style={{
+                fontSize: headwordSize(card.word, 40, 200), fontWeight: 800, color: 'var(--acc)',
+                letterSpacing: '-0.03em', lineHeight: 1.05, minWidth: 0, overflowWrap: 'anywhere',
+              }}>
                 {card.word}
               </div>
               <div style={{
@@ -311,27 +316,6 @@ export default function CardDraftScreen() {
           {saving ? 'Saving…' : 'Save card'}
         </button>
       </div>
-    </div>
-  )
-}
-
-function VerbForms({ forms, language }) {
-  const isEnglish = language === 'en'
-  const entries = isEnglish
-    ? [['V1', forms.v1], ['V2', forms.v2], ['V3', forms.v3]]
-    : [['ja', forms['1sg']], ['oni/one', forms['3pl']]]
-
-  return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      {entries.map(([label, value]) => value && (
-        <div key={label} style={{
-          background: 'var(--bg)', borderRadius: 10, padding: '8px 14px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 1,
-        }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t3)' }}>{label}</span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--acc)' }}>{value}</span>
-        </div>
-      ))}
     </div>
   )
 }

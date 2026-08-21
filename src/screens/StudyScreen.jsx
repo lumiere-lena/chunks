@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 import { groupReviewsBySession, formatSessionTime } from '../lib/learnedToday'
+import VerbForms from '../components/VerbForms'
+import { headwordSize } from '../lib/headword'
 
 // SM-2-ish SRS — 3-button: hard / ok / easy
 // First reviews use fixed intervals (1 → 1 → 3 → 7), then ease_factor kicks in
@@ -88,6 +90,9 @@ export default function StudyScreen() {
   const [learnedSessions, setLearnedSessions] = useState([])
   // Grade for the current card, decided by how the user answered (typed / gave up).
   const [autoGrade, setAutoGrade] = useState(null)
+  // In-flight review writes, and the last card graded (guards a double tap).
+  const pendingRef = useRef([])
+  const gradedRef = useRef(null)
 
   useEffect(() => { loadCards() }, []) // eslint-disable-line
 
@@ -96,6 +101,7 @@ export default function StudyScreen() {
   }, [done]) // eslint-disable-line
 
   async function fetchLearnedToday() {
+    await Promise.allSettled(pendingRef.current)
     const dayStart = new Date()
     dayStart.setHours(0, 0, 0, 0)
     const { data } = await supabase
@@ -128,20 +134,24 @@ export default function StudyScreen() {
     }
   }
 
-  async function handleRating(rating) {
+  // Move to the next card immediately and let the writes finish in the
+  // background — awaiting them made "Next" look dead on a slow connection, so a
+  // second tap would land and skip a card.
+  function handleRating(rating) {
     const card = cards[index]
+    if (!rating || !card || gradedRef.current === card.id) return
+    gradedRef.current = card.id
+
     const updates = applyRating(card, rating)
-    await Promise.all([
+    pendingRef.current.push(Promise.all([
       supabase.from('cards').update(updates).eq('id', card.id),
       supabase.from('reviews').insert({ card_id: card.id, user_id: user.id, rating }),
-    ])
+    ]).catch(() => {}))
 
-    const newResults = [...results, { word: card.word, rating, interval: updates.interval_days }]
+    setResults(prev => [...prev, { word: card.word, rating, interval: updates.interval_days }])
     if (index + 1 >= cards.length) {
-      setResults(newResults)
       setDone(true)
     } else {
-      setResults(newResults)
       setIndex(i => i + 1)
       setRevealed(false)
       setPeeked(false)
@@ -222,6 +232,8 @@ export default function StudyScreen() {
               </div>
               <button
                 onClick={() => {
+                  pendingRef.current = []
+                  gradedRef.current = null
                   setCards([])
                   setIndex(0)
                   setRevealed(false)
@@ -281,7 +293,7 @@ export default function StudyScreen() {
         <button
           onClick={() => navigate('/home', { replace: true })}
           style={{
-            display: 'flex', alignItems: 'center', gap: 4,
+            display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
             background: 'none', border: 'none', fontFamily: 'inherit',
             fontSize: 15, fontWeight: 600, color: 'var(--t2)', cursor: 'pointer', padding: 0,
           }}
@@ -292,13 +304,13 @@ export default function StudyScreen() {
           Back
         </button>
 
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, flex: 1, minWidth: 0, justifyContent: 'center', padding: '0 10px' }}>
           {Array.from({ length: total }).map((_, i) => {
             const ratingColor = { hard: 'oklch(50% 0.18 25)', ok: 'oklch(55% 0.15 50)', easy: 'oklch(48% 0.17 145)' }
             const result = results[i]
             return (
               <div key={i} style={{
-                width: 26, height: 4, borderRadius: 2,
+                flex: '1 1 0', maxWidth: 26, minWidth: 4, height: 4, borderRadius: 2,
                 background: i < index
                   ? (result ? ratingColor[result.rating] : 'var(--acc)')
                   : i === index ? 'var(--acc)' : 'var(--border)',
@@ -309,7 +321,7 @@ export default function StudyScreen() {
           })}
         </div>
 
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t3)' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
           {index + 1} / {total}
         </span>
       </div>
@@ -324,7 +336,11 @@ export default function StudyScreen() {
             // After reveal: word + pos → divider → definition → patterns filled
             <>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ fontSize: 38, fontWeight: 800, color: 'var(--acc)', letterSpacing: '-0.035em', lineHeight: 1 }}>
+                <div style={{
+                  fontSize: headwordSize(card.word, 38, 200), fontWeight: 800, color: 'var(--acc)',
+                  letterSpacing: '-0.035em', lineHeight: 1.05,
+                  minWidth: 0, overflowWrap: 'anywhere',
+                }}>
                   {card.word}
                 </div>
                 <span style={{
@@ -342,7 +358,7 @@ export default function StudyScreen() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <p style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--t1)' }}>
-                  <TappableText text={card.definition} idPrefix={`s-def-${card.id}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
+                  <TappableText text={card.definition} idPrefix={`s-def-${card.id}`} {...wt.tapProps} disabled={tapDisabled} />
                 </p>
                 {card.translation_ru && (
                   <div style={{ fontSize: 14, color: 'var(--t2)', fontStyle: 'italic' }}>{card.translation_ru}</div>
@@ -355,7 +371,7 @@ export default function StudyScreen() {
                         background: 'var(--bg)', borderRadius: 12, padding: '11px 14px',
                         fontSize: 15, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
                       }}>
-                        <TappablePattern pattern={p} word={card.word} idPrefix={`s-pat-${card.id}-${i}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
+                        <TappablePattern pattern={p} word={card.word} idPrefix={`s-pat-${card.id}-${i}`} {...wt.tapProps} disabled={tapDisabled} />
                       </div>
                     ))}
                   </div>
@@ -373,7 +389,7 @@ export default function StudyScreen() {
               <div>
                 <div className="micro" style={{ marginBottom: 10 }}>Think of the word…</div>
                 <p style={{ fontSize: 15.5, fontWeight: 500, lineHeight: 1.6, color: 'var(--t1)' }}>
-                  <TappableText text={card.definition} idPrefix={`s-def-${card.id}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} />
+                  <TappableText text={card.definition} idPrefix={`s-def-${card.id}`} {...wt.tapProps} disabled={tapDisabled} />
                 </p>
               </div>
 
@@ -396,7 +412,7 @@ export default function StudyScreen() {
                       background: 'var(--bg)', borderRadius: 12, padding: '11px 14px',
                       fontSize: 15, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
                     }}>
-                      <TappablePattern pattern={p} word={card.word} idPrefix={`s-pat-${card.id}-${i}`} selectedId={wt.selectedId} onWordTap={wt.selectWord} disabled={tapDisabled} revealed={false} />
+                      <TappablePattern pattern={p} word={card.word} idPrefix={`s-pat-${card.id}-${i}`} {...wt.tapProps} disabled={tapDisabled} revealed={false} />
                     </div>
                   ))}
                 </div>
@@ -457,27 +473,6 @@ export default function StudyScreen() {
       )}
 
       <CreateCardBar selected={wt.selected} phase={wt.phase} result={wt.result} onConfirm={wt.confirm} onClose={wt.clear} />
-    </div>
-  )
-}
-
-function VerbForms({ forms, language }) {
-  const isEnglish = language === 'en'
-  const entries = isEnglish
-    ? [['V1', forms.v1], ['V2', forms.v2], ['V3', forms.v3]]
-    : [['ja', forms['1sg']], ['oni/one', forms['3pl']]]
-
-  return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      {entries.map(([label, value]) => value && (
-        <div key={label} style={{
-          background: 'var(--bg)', borderRadius: 10, padding: '8px 14px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 1,
-        }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--t3)' }}>{label}</span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--acc)' }}>{value}</span>
-        </div>
-      ))}
     </div>
   )
 }
