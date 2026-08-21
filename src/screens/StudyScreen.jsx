@@ -477,6 +477,11 @@ export default function StudyScreen() {
   )
 }
 
+// Width the letter slots have on the narrowest screen (375px), minus the screen
+// and card padding. A space / hyphen takes a fraction of a letter slot.
+const ROW_WIDTH = 299
+const SEP_UNITS = 0.55
+
 const DIACRITIC_FOLD = { 'č': 'c', 'ć': 'c', 'đ': 'd', 'š': 's', 'ž': 'z' }
 const isLetter = (c) => /\p{L}/u.test(c)
 function fold(ch) {
@@ -554,10 +559,18 @@ function WordInput({ word, onSolved }) {
   const RED = 'oklch(55% 0.2 25)'
   let li = -1
 
+  // Size the slots to the word so even a long one like "self-deprecating" stays
+  // on a single line — wrapping split it into a full row plus a stray letter.
+  const gap = chars.length > 16 ? 2 : chars.length > 12 ? 3 : chars.length > 9 ? 4 : 6
+  const units = chars.reduce((n, ch) => n + (isLetter(ch) ? 1 : SEP_UNITS), 0)
+  const slot = Math.max(11, Math.min(26, (ROW_WIDTH - gap * (chars.length - 1)) / units))
+  const fontSize = Math.max(10.5, Math.min(20, slot * 0.82))
+  const height = Math.round(fontSize * 1.6)
+
   return (
     <div
       onClick={() => inputRef.current?.focus()}
-      style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 6, cursor: 'text', position: 'relative' }}
+      style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: `10px ${gap}px`, cursor: 'text', position: 'relative' }}
     >
       <input
         ref={inputRef}
@@ -571,9 +584,16 @@ function WordInput({ word, onSolved }) {
       />
       {chars.map((ch, i) => {
         if (!isLetter(ch)) {
+          const sepWidth = slot * SEP_UNITS
           return ch === ' '
-            ? <span key={i} style={{ width: 10 }} />
-            : <span key={i} style={{ fontSize: 20, fontWeight: 700, color: 'var(--t3)', alignSelf: 'center' }}>{ch}</span>
+            ? <span key={i} style={{ width: sepWidth, flexShrink: 0, height }} />
+            : (
+              <span key={i} style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: sepWidth, flexShrink: 0, height,
+                fontSize, fontWeight: 700, color: 'var(--t3)', lineHeight: 1,
+              }}>{ch}</span>
+            )
         }
         li += 1
         const idx = li
@@ -591,9 +611,9 @@ function WordInput({ word, onSolved }) {
         return (
           <span key={i} style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            minWidth: 24, height: 32, padding: '0 3px',
-            borderBottom: `2.5px solid ${borderColor}`,
-            fontSize: 20, fontWeight: 800, color: textColor, lineHeight: 1,
+            width: slot, flexShrink: 0, height,
+            borderBottom: '2.5px solid ' + borderColor,
+            fontSize, fontWeight: 800, color: textColor, lineHeight: 1,
             transition: 'color 0.1s, border-color 0.1s',
           }}>
             {typedCh ?? ''}
