@@ -41,6 +41,9 @@ body {
   max-width: 430px;
   margin: 0 auto;
   animation: fadeUp 0.22s ease;
+  /* Standalone on iPhone draws under the home indicator: keep the bottom row
+     of every screen clear of it. The nav bar opts out below. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(12px); }
@@ -114,6 +117,8 @@ body {
 .nav-bar {
   display: flex;
   justify-content: space-around;
+  /* Paint through the screen's safe-area padding, but keep the tabs above it */
+  margin-bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
   padding: 10px 0 max(22px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   border-radius: 20px 20px 0 0;
