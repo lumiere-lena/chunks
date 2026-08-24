@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
@@ -14,6 +14,7 @@ const LANG_META = {
 export default function HomeScreen() {
   const { user, activeLang, setActiveLang, plan, langLoading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const inputRef = useRef(null)
 
   const [stats, setStats] = useState({ new: 0, learning: 0, mastered: 0 })
@@ -22,6 +23,16 @@ export default function HomeScreen() {
   const [showAllSessions, setShowAllSessions] = useState(false)
   const [word, setWord] = useState('')
   const [statsLoading, setStatsLoading] = useState(true)
+  // Word just saved from the draft screen — shown once, then cleared from
+  // history so a refresh or back-nav doesn't bring the toast back.
+  const [addedWord, setAddedWord] = useState(location.state?.addedWord ?? null)
+
+  useEffect(() => {
+    if (!location.state?.addedWord) return
+    window.history.replaceState({}, '')
+    const t = setTimeout(() => setAddedWord(null), 2400)
+    return () => clearTimeout(t)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (langLoading) return
@@ -104,6 +115,25 @@ export default function HomeScreen() {
           ))}
         </div>
       </div>
+
+      {/* Added-word toast */}
+      {addedWord && (
+        <div style={{
+          margin: '14px 20px 0', flexShrink: 0,
+          background: 'var(--s1)', border: '1.5px solid var(--acc)', borderRadius: 14,
+          padding: '11px 16px', display: 'flex', alignItems: 'center', gap: 9,
+          animation: 'fadeUp 0.18s ease',
+        }}>
+          <span style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 20, height: 20, borderRadius: '50%', background: 'var(--acc)',
+            color: 'white', fontSize: 12, fontWeight: 800, flexShrink: 0,
+          }}>✓</span>
+          <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Added: {addedWord}
+          </span>
+        </div>
+      )}
 
       {/* Body */}
       <div className="scroll" style={{ padding: '20px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>

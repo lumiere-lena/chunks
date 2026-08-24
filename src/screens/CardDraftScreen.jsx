@@ -93,7 +93,7 @@ export default function CardDraftScreen() {
     const { error } = await supabase.from('cards').insert(row)
     setSaving(false)
     if (!error) {
-      navigate('/home', { replace: true })
+      navigate('/home', { replace: true, state: { addedWord: card.word } })
     }
   }
 
