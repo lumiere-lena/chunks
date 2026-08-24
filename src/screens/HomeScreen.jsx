@@ -116,22 +116,26 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* Added-word toast */}
+      {/* Added-word toast — same floating pill as the tap-to-add flow */}
       {addedWord && (
         <div style={{
-          margin: '14px 20px 0', flexShrink: 0,
-          background: 'var(--s1)', border: '1.5px solid var(--acc)', borderRadius: 14,
-          padding: '11px 16px', display: 'flex', alignItems: 'center', gap: 9,
-          animation: 'fadeUp 0.18s ease',
+          position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+          bottom: 0, width: '100%', maxWidth: 430, zIndex: 50,
+          padding: '0 12px calc(70px + max(22px, env(safe-area-inset-bottom)) + 10px)',
+          boxSizing: 'border-box', pointerEvents: 'none',
         }}>
-          <span style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 20, height: 20, borderRadius: '50%', background: 'var(--acc)',
-            color: 'white', fontSize: 12, fontWeight: 800, flexShrink: 0,
-          }}>✓</span>
-          <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            Added: {addedWord}
-          </span>
+          <div style={{
+            background: 'var(--s1)', borderRadius: 16,
+            border: '1.5px solid var(--border)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.18)',
+            padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10,
+            animation: 'fadeUp 0.18s ease',
+          }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>✓</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Added: {addedWord}
+            </span>
+          </div>
         </div>
       )}
 
