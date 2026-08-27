@@ -33,6 +33,8 @@ async function synthesize(word, language) {
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ word, language }),
+        // Without this the spinner can spin forever if the function stalls.
+        signal: AbortSignal.timeout(45000),
       },
     )
     if (!res.ok) return null

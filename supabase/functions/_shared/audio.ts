@@ -12,6 +12,13 @@ const TTS_MODEL = 'eleven_flash_v2_5'
 // should be paying ElevenLabs credits for.
 export const MAX_TTS_CHARS = 60
 
+// ElevenLabs accepts no Serbian language code, and sending one fails the whole
+// request. Croatian is the closest thing it does accept: same phonology, and an
+// identical Latin orthography, so it reads Serbian headwords correctly.
+// Note this only affects what we tell ElevenLabs — cache keys stay keyed on the
+// app's own language code, so nothing here changes where audio is stored.
+const TTS_LANG_CODES: Record<string, string> = { sr: 'hr' }
+
 const SUPABASE_URL = () => Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = () => Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -57,7 +64,7 @@ async function synthesize(word: string, language: string): Promise<ArrayBuffer> 
         model_id: TTS_MODEL,
         // One voice covers both languages, so the language has to be stated
         // explicitly — otherwise "trebati" gets read with English phonetics.
-        language_code: language,
+        language_code: TTS_LANG_CODES[language] ?? language,
         voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 0.9 },
       }),
     },
