@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
 import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 import VerbForms from '../components/VerbForms'
+import SpeakButton from '../components/SpeakButton'
 import { headwordSize } from '../lib/headword'
 
 const LANG_META = {
@@ -185,15 +186,18 @@ export default function LibraryScreen() {
                     }}>
                       {card.word}
                     </div>
-                    {card.pos && (
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, color: 'var(--t2)',
-                        background: 'var(--s2)', borderRadius: 8, padding: '3px 9px',
-                        whiteSpace: 'nowrap', flexShrink: 0,
-                      }}>
-                        {card.pos}
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                      <SpeakButton word={card.word} language={activeLang} />
+                      {card.pos && (
+                        <span style={{
+                          fontSize: 11, fontWeight: 700, color: 'var(--t2)',
+                          background: 'var(--s2)', borderRadius: 8, padding: '3px 9px',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {card.pos}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {card.verb_forms && <VerbForms forms={card.verb_forms} language={activeLang} size="sm" />}

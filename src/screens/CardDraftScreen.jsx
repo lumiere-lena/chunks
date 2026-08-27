@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import VerbForms from '../components/VerbForms'
+import SpeakButton from '../components/SpeakButton'
 import { headwordSize } from '../lib/headword'
 
 const MODEL = 'gemini'
@@ -23,7 +24,7 @@ export default function CardDraftScreen() {
     if (word) generate()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function generate() {
+  async function generate(regenerate = false) {
     setStatus('loading')
     setCard(null)
     try {
@@ -36,7 +37,7 @@ export default function CardDraftScreen() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ word, language, model: MODEL }),
+          body: JSON.stringify({ word, language, model: MODEL, regenerate }),
         }
       )
       const data = await res.json()
@@ -231,12 +232,14 @@ export default function CardDraftScreen() {
               }}>
                 {card.word}
               </div>
-              <div style={{
-                flexShrink: 0,
-                fontSize: 12, fontWeight: 700, color: 'var(--t2)',
-                background: 'var(--s2)', borderRadius: 8, padding: '4px 10px', whiteSpace: 'nowrap',
-              }}>
-                {card.pos}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <SpeakButton word={card.word} language={language} url={card.audio_url} size={20} />
+                <div style={{
+                  fontSize: 12, fontWeight: 700, color: 'var(--t2)',
+                  background: 'var(--s2)', borderRadius: 8, padding: '4px 10px', whiteSpace: 'nowrap',
+                }}>
+                  {card.pos}
+                </div>
               </div>
             </div>
 
@@ -258,7 +261,7 @@ export default function CardDraftScreen() {
                   Usage patterns
                 </span>
                 <button
-                  onClick={() => generate()}
+                  onClick={() => generate(true)}
                   style={{
                     background: 'none', border: 'none', fontFamily: 'inherit',
                     display: 'flex', alignItems: 'center', gap: 5,

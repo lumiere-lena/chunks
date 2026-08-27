@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js'
+import { ensureAudio, publicAudioUrl } from '../_shared/audio.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,19 +30,28 @@ based on race, ethnicity, gender, sexuality, disability, or religion, then DO NO
 Instead return ONLY this JSON: { "error": "inappropriate" }
 Vulgar/colloquial words (damn, shit, ass, etc.) and words that have legitimate non-offensive uses are fine — only block hate speech and slurs.
 
-First, determine the correct dictionary headword:
+First, determine what to save as the headword.
+
+If the input is a SINGLE word, resolve it to its dictionary headword:
 - Convert purely inflected forms to their base/lemma form (plural → singular, conjugated verb → infinitive).
   Examples: "dogs" → "dog", "running" → "run", "ran" → "run".
   For Serbian verbs ALWAYS use the infinitive ending in -ti or -ći: "treba" → "trebati", "idem" → "ići", "vidim" → "videti", "čitam" → "čitati".
   For Serbian nouns use the nominative singular: "kuće" → "kuća", "knjige" → "knjiga".
 - Fix obvious spelling mistakes (e.g. "recieve" → "receive", "preavailing" → "prevailing").
-- Keep deliberate fixed phrases as-is (e.g. "take into account").
 - IMPORTANT: if an -ing or -ed form is an ESTABLISHED adjective with its own dictionary
   entry and meaning (e.g. "prevailing", "interesting", "amazing", "complicated"),
   KEEP that form and label it as an adjective — do NOT reduce it to the base verb.
   Only reduce -ing/-ed forms when they are plain verb inflections (e.g. "walking" → "walk").
 - If a plural form has a distinct meaning of its own (e.g. "glasses" = spectacles), keep that form.
-- The headword must be in ${langName}.
+
+If the input is MULTIPLE words (a phrase, collocation, or fixed expression — e.g. "take into
+account", "set success criteria upfront"), this is a CHUNK card:
+- Keep the ENTIRE phrase as the headword, exactly as the words were typed. Do NOT reduce it to
+  a single word picked out of it, and do NOT drop any of the words.
+- Only fix obvious spelling mistakes and stray whitespace/casing — do not rewrite the grammar.
+- Set "pos" to "phrase" (English) / "izraz" (Serbian) for chunk cards — see PART OF SPEECH below.
+
+The headword must be in ${langName}.
 
 Return ONLY valid JSON with this exact shape, no other text:
 {
@@ -62,12 +72,13 @@ ${isSr
   ? `Write it in Serbian, using EXACTLY one of these terms (lowercase):
   imenica (noun), glagol (verb), pridev (adjective), prilog (adverb),
   zamenica (pronoun), predlog (preposition), veznik (conjunction),
-  broj (numeral), rečca (particle), uzvik (interjection).
+  broj (numeral), rečca (particle), uzvik (interjection), izraz (multi-word chunk).
   For nouns, append the grammatical gender in parentheses:
   (m) muški rod, (ž) ženski rod, (s) srednji rod — e.g. "imenica (m)", "imenica (ž)", "imenica (s)".
   Do NOT use English part-of-speech names like "noun", "verb" or "adjective".`
   : `Write it in English, using EXACTLY one of these terms (lowercase):
-  noun, verb, adjective, adverb, pronoun, preposition, conjunction, numeral, particle, interjection.`}
+  noun, verb, adjective, adverb, pronoun, preposition, conjunction, numeral, particle, interjection,
+  phrase (multi-word chunk).`}
 
 VERB FORMS — only include for verbs (Serbian pos "glagol", English pos "verb"):
 ${langName === 'English'
@@ -86,10 +97,12 @@ Rules:
 - "word" is the cleaned headword, NOT the raw input
 - definition must be written in ${langName} (the language being learned)
 - Write the definition directly — never start with meta-phrases like "This term describes", "This word refers to", "It is a word that", "A term used to". Jump straight to the meaning.
-- "translation_ru" is a short Russian translation (1-3 words), required for every card
-- the definition must NOT contain the headword or any word sharing its root/stem
-  (e.g. for "greatness" do not use "great", "greatly"; for "decision" do not use "decide").
-  Explain the meaning using different vocabulary — paraphrase instead.
+- "translation_ru" is a short Russian translation (1-3 words for a single-word headword,
+  a short phrase translation for a chunk headword), required for every card
+- for a SINGLE-WORD headword, the definition must NOT contain the headword or any word sharing
+  its root/stem (e.g. for "greatness" do not use "great", "greatly"; for "decision" do not use
+  "decide"). Explain the meaning using different vocabulary — paraphrase instead. This restriction
+  does not apply to chunk headwords (the definition may reuse the phrase's own words).
 - Each pattern must be a meaningful collocation (4-10 words) — not a bare two-word pair, but not a full sentence either.
   Include enough context to show a real situation: a subject, an object, or a typical complement.
   Use sth/sb/smn placeholders for generic objects when helpful.
@@ -97,11 +110,16 @@ Rules:
   GOOD: "make <<derogatory>> remarks about sb"
   BAD:  "rapidly proliferate" (no subject)
   GOOD: "misinformation can rapidly <<proliferate>>"
-- Wrap ONLY the target word (in whatever grammatical form fits the context) in <<double angle brackets>>
+- For a SINGLE-WORD headword, wrap ONLY the target word (in whatever grammatical form fits the
+  context) in <<double angle brackets>>, and use varied grammatical forms across patterns to show
+  how the word actually behaves:
   e.g. for "trebati": "meni <<treba>> pomoć", "<<trebam>> da učim", "ne <<treba>> da brineš"
   e.g. for "impact": "have a significant <<impact>> on sth", "<<impacting>> local communities"
   e.g. for "effort": "make a conscious <<effort>> to do sth", "combined <<efforts>> of the team"
-- Use varied grammatical forms across patterns to show how the word actually behaves
+- For a CHUNK headword (multi-word), wrap the ENTIRE phrase in <<double angle brackets>> and vary
+  the surrounding sentence context across patterns instead of varying the phrase's own form:
+  e.g. for "take into account": "you need to <<take into account>> the extra costs",
+  "the plan doesn't <<take into account>> last-minute changes"
 - 2-3 patterns showing real collocations and grammatical constructions`
 
   console.log(`[generate-card] model=${MODEL_ID}, word="${word}", lang=${langName}`)
@@ -169,7 +187,7 @@ Rules:
 
 // Dictionary cache via REST API
 async function dictLookup(word: string, language: string): Promise<any | null> {
-  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary?word=eq.${encodeURIComponent(word)}&language=eq.${encodeURIComponent(language)}&select=word,pos,definition,translation_ru,patterns,verb_forms,model&limit=1`
+  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary?word=eq.${encodeURIComponent(word)}&language=eq.${encodeURIComponent(language)}&select=word,pos,definition,translation_ru,patterns,verb_forms,audio_path,model&limit=1`
   try {
     const res = await fetch(url, {
       headers: {
@@ -203,13 +221,27 @@ async function dictSave(entry: { word: string; language: string; pos: string; de
   }
 }
 
+// Pronunciation is synthesized inline rather than in the background: it costs
+// well under a second next to the model call, and having the URL in the card
+// response means the client can preload the mp3 before the user taps play —
+// which is what makes playback work on iOS Safari. A failure here must never
+// take the card down with it.
+async function resolveAudio(word: string, language: string): Promise<string | null> {
+  try {
+    return await ensureAudio(word, language)
+  } catch (e) {
+    console.error('[generate-card] audio error:', e)
+    return null
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { word, language } = await req.json()
+    const { word, language, regenerate } = await req.json()
 
     if (!word || !language) {
       return new Response(JSON.stringify({ error: 'word and language are required' }), {
@@ -258,13 +290,20 @@ Deno.serve(async (req) => {
     const langName = LANG_NAMES[language] ?? language
     const wordLower = word.toLowerCase().trim()
 
-    // Check dictionary cache
-    const cached = await dictLookup(wordLower, language)
-    if (cached) {
-      console.log(`[generate-card] cache hit: "${wordLower}" (${language})`)
-      return new Response(JSON.stringify({ ...cached, cached: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    // Check dictionary cache (skipped when the user explicitly asks to regenerate)
+    if (!regenerate) {
+      const cached = await dictLookup(wordLower, language)
+      if (cached) {
+        console.log(`[generate-card] cache hit: "${wordLower}" (${language})`)
+        const { audio_path, ...entry } = cached
+        // Entries cached before pronunciations existed have no audio yet.
+        const audio_url = audio_path
+          ? publicAudioUrl(audio_path)
+          : await resolveAudio(cached.word, language)
+        return new Response(JSON.stringify({ ...entry, audio_url, cached: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     // Cache miss — generate via AI
@@ -289,10 +328,13 @@ Deno.serve(async (req) => {
     }
     if (cardData.translation_ru) dictEntry.translation_ru = cardData.translation_ru
     if (cardData.verb_forms) dictEntry.verb_forms = cardData.verb_forms
-    dictSave(dictEntry)
+    // Awaited so the row exists before the audio step writes `audio_path` to it.
+    await dictSave(dictEntry)
     console.log(`[generate-card] cached: "${dictWord}" (${language})`)
 
-    return new Response(JSON.stringify(cardData), {
+    const audio_url = await resolveAudio(dictWord, language)
+
+    return new Response(JSON.stringify({ ...cardData, audio_url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {

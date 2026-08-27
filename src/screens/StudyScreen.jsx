@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 import { groupReviewsBySession, formatSessionTime } from '../lib/learnedToday'
 import VerbForms from '../components/VerbForms'
+import SpeakButton from '../components/SpeakButton'
 import { headwordSize } from '../lib/headword'
 
 // SM-2-ish SRS — 3-button: hard / ok / easy
@@ -343,13 +344,18 @@ export default function StudyScreen() {
                 }}>
                   {card.word}
                 </div>
-                <span style={{
-                  fontSize: 12, fontWeight: 700, color: 'var(--t2)',
-                  background: 'var(--s2)', borderRadius: 8, padding: '4px 10px',
-                  whiteSpace: 'nowrap', flexShrink: 0,
-                }}>
-                  {card.pos}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}>
+                  {/* Only on the revealed side — a speaker on the prompt side
+                      would give the answer away before recall. */}
+                  <SpeakButton word={card.word} language={card.language} size={20} />
+                  <span style={{
+                    fontSize: 12, fontWeight: 700, color: 'var(--t2)',
+                    background: 'var(--s2)', borderRadius: 8, padding: '4px 10px',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {card.pos}
+                  </span>
+                </div>
               </div>
 
               {card.verb_forms && <VerbForms forms={card.verb_forms} language={card.language} />}
