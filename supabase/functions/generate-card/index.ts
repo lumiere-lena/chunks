@@ -1,5 +1,4 @@
 import { createClient } from 'npm:@supabase/supabase-js'
-import { ensureAudio, publicAudioUrl } from '../_shared/audio.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -187,7 +186,7 @@ Rules:
 
 // Dictionary cache via REST API
 async function dictLookup(word: string, language: string): Promise<any | null> {
-  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary?word=eq.${encodeURIComponent(word)}&language=eq.${encodeURIComponent(language)}&select=word,pos,definition,translation_ru,patterns,verb_forms,audio_path,model&limit=1`
+  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary?word=eq.${encodeURIComponent(word)}&language=eq.${encodeURIComponent(language)}&select=word,pos,definition,translation_ru,patterns,verb_forms,model&limit=1`
   try {
     const res = await fetch(url, {
       headers: {
@@ -218,20 +217,6 @@ async function dictSave(entry: { word: string; language: string; pos: string; de
     })
   } catch (e) {
     console.error('[generate-card] dict save error:', e)
-  }
-}
-
-// Pronunciation is synthesized inline rather than in the background: it costs
-// well under a second next to the model call, and having the URL in the card
-// response means the client can preload the mp3 before the user taps play —
-// which is what makes playback work on iOS Safari. A failure here must never
-// take the card down with it.
-async function resolveAudio(word: string, language: string): Promise<string | null> {
-  try {
-    return await ensureAudio(word, language)
-  } catch (e) {
-    console.error('[generate-card] audio error:', e)
-    return null
   }
 }
 
@@ -295,12 +280,7 @@ Deno.serve(async (req) => {
       const cached = await dictLookup(wordLower, language)
       if (cached) {
         console.log(`[generate-card] cache hit: "${wordLower}" (${language})`)
-        const { audio_path, ...entry } = cached
-        // Entries cached before pronunciations existed have no audio yet.
-        const audio_url = audio_path
-          ? publicAudioUrl(audio_path)
-          : await resolveAudio(cached.word, language)
-        return new Response(JSON.stringify({ ...entry, audio_url, cached: true }), {
+        return new Response(JSON.stringify({ ...cached, cached: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
@@ -328,13 +308,10 @@ Deno.serve(async (req) => {
     }
     if (cardData.translation_ru) dictEntry.translation_ru = cardData.translation_ru
     if (cardData.verb_forms) dictEntry.verb_forms = cardData.verb_forms
-    // Awaited so the row exists before the audio step writes `audio_path` to it.
-    await dictSave(dictEntry)
+    dictSave(dictEntry)
     console.log(`[generate-card] cached: "${dictWord}" (${language})`)
 
-    const audio_url = await resolveAudio(dictWord, language)
-
-    return new Response(JSON.stringify({ ...cardData, audio_url }), {
+    return new Response(JSON.stringify(cardData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {

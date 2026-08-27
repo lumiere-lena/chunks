@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 // Pronunciations live in a public Storage bucket under a key derived from the
-// headword itself, so the URL can be computed here without asking the backend —
-// the common case is a plain CDN fetch, no Edge Function involved.
+// headword itself, so the URL can be computed here without asking the backend.
 // Must stay in sync with audioKey() in supabase/functions/_shared/audio.ts.
 async function audioUrlFor(word, language) {
   const digest = await crypto.subtle.digest(
@@ -17,9 +16,12 @@ async function audioUrlFor(word, language) {
   return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/pronunciations/${path}`
 }
 
-// Words whose mp3 we already confirmed exists, so re-opening a card is instant.
-const known = new Set()
+// Headwords played at least once this session, so revisiting a card skips
+// straight to playback instead of probing for the file again.
+const played = new Set()
 
+// Ask the backend to synthesize. Costs ElevenLabs credits, so this only ever
+// runs from a tap on a word that has no audio yet.
 async function synthesize(word, language) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return null
@@ -45,17 +47,15 @@ async function synthesize(word, language) {
 }
 
 /**
- * Speaker button that plays the pronunciation of a headword.
- *
- * `url` is the audio_url returned by generate-card — pass it when you have it
- * to skip the existence check entirely.
+ * Speaker button that plays the pronunciation of a headword, synthesizing it
+ * on the first tap if nobody has ever asked for this word before.
  */
-export default function SpeakButton({ word, language, url, size = 18 }) {
-  const [state, setState] = useState('idle') // idle | loading | playing | unavailable
+export default function SpeakButton({ word, language, size = 18 }) {
+  const [state, setState] = useState('idle') // idle | loading | playing | failed
   const audioRef = useRef(null)
+  const urlRef = useRef(null)
 
-  // The same button instance gets reused as the user moves between cards, so
-  // reset the icon as soon as the headword changes rather than a render later.
+  // Reset when the same button instance is reused for the next card.
   const id = `${language}:${word}`
   const [prevId, setPrevId] = useState(id)
   if (prevId !== id) {
@@ -63,86 +63,83 @@ export default function SpeakButton({ word, language, url, size = 18 }) {
     setState('idle')
   }
 
-  // Resolve and preload the mp3 up front. This is what makes playback work on
-  // iOS Safari: it only honours play() called synchronously inside a tap, so
-  // the audio element has to be ready before the user touches anything.
+  // One audio element per card, with the URL resolved ahead of the tap. Hashing
+  // is async, and iOS Safari only plays audio from a synchronous call inside a
+  // tap handler — so the element has to be armed before the user touches it.
   useEffect(() => {
     let alive = true
     audioRef.current = null
+    urlRef.current = null
 
-    async function preload() {
-      let src = url
-      if (!src) {
-        src = await audioUrlFor(word, language)
-        if (!known.has(src)) {
-          // HEAD is a cheap CDN round-trip; a miss just means "not synthesized
-          // yet", and we leave it to the tap so no credits are spent on a card
-          // nobody asked to hear.
-          try {
-            const res = await fetch(src, { method: 'HEAD' })
-            if (!res.ok) return
-          } catch {
-            return
-          }
-          known.add(src)
-        }
-      }
+    audioUrlFor(word, language).then(url => {
       if (!alive) return
-
-      const audio = new Audio(src)
-      audio.preload = 'auto'
+      urlRef.current = url
+      const audio = new Audio()
+      audio.preload = 'none' // don't fetch until asked — most cards never are
+      audio.src = url
       audio.addEventListener('ended', () => setState('idle'))
-      audio.addEventListener('error', () => setState('unavailable'))
       audioRef.current = audio
-    }
+    })
 
-    preload()
     return () => {
       alive = false
       audioRef.current?.pause()
     }
-  }, [word, language, url])
+  }, [word, language])
 
   async function handleClick() {
     if (state === 'loading') return
+    const audio = audioRef.current
+    if (!audio) return
 
-    const ready = audioRef.current
-    if (ready) {
-      ready.currentTime = 0
-      setState('playing')
-      // play() rejects if the browser blocks it — don't leave the icon stuck.
-      ready.play().catch(() => setState('idle'))
+    audio.currentTime = 0
+    setState('playing')
+
+    // Play synchronously first. If the word has audio this just works, and on
+    // iOS it is the only call that counts as user-initiated. If the file isn't
+    // there yet the request 404s and we fall through to synthesizing it — by
+    // which point this element is already unlocked, so the retry plays too.
+    try {
+      await audio.play()
+      played.add(urlRef.current)
       return
+    } catch {
+      // play() also rejects for reasons that have nothing to do with a missing
+      // file — an autoplay policy, an interrupted load. Only a set media error
+      // means the source itself failed, and only that is worth spending an
+      // ElevenLabs credit on.
+      if (!audio.error || played.has(urlRef.current)) {
+        setState('idle')
+        return
+      }
     }
 
-    // Nothing preloaded: a card added before pronunciations existed, or a
-    // failed synthesis. Generate it now.
     setState('loading')
-    const src = await synthesize(word, language)
-    if (!src) {
-      setState('unavailable')
+    const url = await synthesize(word, language)
+    if (!url) {
+      setState('failed')
       return
     }
-    known.add(src)
-    const audio = new Audio(src)
-    audio.addEventListener('ended', () => setState('idle'))
-    audioRef.current = audio
+    played.add(url)
+    audio.src = url
     setState('playing')
     audio.play().catch(() => setState('idle'))
   }
 
-  if (state === 'unavailable') return null
-
+  // A failed word keeps its button — dimmed rather than hidden, so a retry is
+  // still one tap away and a silent word never looks like a missing feature.
   const color = state === 'playing' ? 'var(--acc)' : 'var(--t3)'
 
   return (
     <button
       onClick={handleClick}
       aria-label={`Listen to ${word}`}
+      title={state === 'failed' ? 'Could not load audio — tap to retry' : undefined}
       style={{
         flexShrink: 0, background: 'none', border: 'none', padding: 6, margin: -6,
-        cursor: 'pointer', color, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', transition: 'color 0.15s',
+        cursor: 'pointer', color, opacity: state === 'failed' ? 0.35 : 1,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'color 0.15s, opacity 0.15s',
       }}
     >
       {state === 'loading' ? (

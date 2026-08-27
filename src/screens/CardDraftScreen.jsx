@@ -233,7 +233,7 @@ export default function CardDraftScreen() {
                 {card.word}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                <SpeakButton word={card.word} language={language} url={card.audio_url} size={20} />
+                <SpeakButton word={card.word} language={language} size={20} />
                 <div style={{
                   fontSize: 12, fontWeight: 700, color: 'var(--t2)',
                   background: 'var(--s2)', borderRadius: 8, padding: '4px 10px', whiteSpace: 'nowrap',
