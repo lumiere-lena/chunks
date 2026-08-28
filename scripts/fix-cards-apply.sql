@@ -26,8 +26,7 @@ with wordmap(lang, from_word, to_word) as (values
   ('en','in the verge of tears','on the verge of tears'),
   ('en','offhanded statement','offhand statement'),
   ('en','pulling together','pull together'), ('en','keep spending on it','keep spending on'),
-  ('en','deprecating','self-deprecating'),
-  ('sr','odvediti','odvesti'), ('sr','rendani','rendan')
+  ('en','deprecating','self-deprecating')
 )
 update public.reviews r
 set card_id = t.id
@@ -46,8 +45,7 @@ with wordmap(lang, from_word, to_word) as (values
   ('en','in the verge of tears','on the verge of tears'),
   ('en','offhanded statement','offhand statement'),
   ('en','pulling together','pull together'), ('en','keep spending on it','keep spending on'),
-  ('en','deprecating','self-deprecating'),
-  ('sr','odvediti','odvesti'), ('sr','rendani','rendan')
+  ('en','deprecating','self-deprecating')
 )
 update public.cards t
 set interval_days  = greatest(t.interval_days, s.interval_days),
@@ -72,8 +70,7 @@ with wordmap(lang, from_word, to_word) as (values
   ('en','in the verge of tears','on the verge of tears'),
   ('en','offhanded statement','offhand statement'),
   ('en','pulling together','pull together'), ('en','keep spending on it','keep spending on'),
-  ('en','deprecating','self-deprecating'),
-  ('sr','odvediti','odvesti'), ('sr','rendani','rendan')
+  ('en','deprecating','self-deprecating')
 )
 delete from public.cards s
 using wordmap m, public.cards t
@@ -90,8 +87,7 @@ with wordmap(lang, from_word, to_word) as (values
   ('en','in the verge of tears','on the verge of tears'),
   ('en','offhanded statement','offhand statement'),
   ('en','pulling together','pull together'), ('en','keep spending on it','keep spending on'),
-  ('en','deprecating','self-deprecating'),
-  ('sr','odvediti','odvesti'), ('sr','rendani','rendan')
+  ('en','deprecating','self-deprecating')
 )
 update public.cards c
 set word = m.to_word
@@ -105,8 +101,7 @@ with wordmap(lang, from_word, to_word) as (values
   ('en','in the verge of tears','on the verge of tears'),
   ('en','offhanded statement','offhand statement'),
   ('en','pulling together','pull together'), ('en','keep spending on it','keep spending on'),
-  ('en','deprecating','self-deprecating'),
-  ('sr','odvediti','odvesti'), ('sr','rendani','rendan')
+  ('en','deprecating','self-deprecating')
 )
 delete from public.dictionary d
 using wordmap m
@@ -119,8 +114,7 @@ with wordmap(lang, from_word, to_word) as (values
   ('en','in the verge of tears','on the verge of tears'),
   ('en','offhanded statement','offhand statement'),
   ('en','pulling together','pull together'), ('en','keep spending on it','keep spending on'),
-  ('en','deprecating','self-deprecating'),
-  ('sr','odvediti','odvesti'), ('sr','rendani','rendan')
+  ('en','deprecating','self-deprecating')
 )
 select c.word as word, c.language as lang, c.status as status,
        c.review_count::text as reviews, c.interval_days::text as interval

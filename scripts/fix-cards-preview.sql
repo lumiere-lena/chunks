@@ -11,13 +11,7 @@ with wordmap(lang, from_word, to_word) as (values
   ('en', 'offhanded statement',   'offhand statement'),
   ('en', 'pulling together',      'pull together'),
   ('en', 'keep spending on it',   'keep spending on'),
-  ('en', 'deprecating',           'self-deprecating'),
-  -- Serbian. `odvediti` is the same fault as `abiquated`: not a real
-  -- infinitive, and its own patterns conjugate `odvesti`, which already has a
-  -- correct entry. `rendani` is the definite form of `rendan` and its
-  -- definition is word-for-word identical.
-  ('sr', 'odvediti',              'odvesti'),
-  ('sr', 'rendani',               'rendan')
+  ('en', 'deprecating',           'self-deprecating')
 ),
 
 -- Words with no replacement at all.
