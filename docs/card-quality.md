@@ -11,6 +11,7 @@ visible whether quality is improving.
 |---|---|---|---|---|---|
 | 2026-08-28 | en | 91 | 32 | 35% | Baseline, before any fixes |
 | 2026-08-28 | en | 89 | 4 | 4% | After the prompt rewrite, the SQL fixes and regeneration |
+| 2026-08-28 | en | 89 | 3 | 3% | After forbidding a definition that restates its headword |
 
 ### 2026-08-28 by category
 
@@ -69,11 +70,12 @@ the rest of the baseline findings needed reading.
 
 ### What is left in English
 
-Four findings, none urgent:
+Three findings, none urgent. `fallback` was the fourth and is fixed: its
+definition opened "A fallback is an alternative plan…", which the prompt's list
+of banned meta-phrases did not cover, since none of them took the shape of the
+headword itself. Regenerating reproduced it word for word; only naming that
+shape in the prompt changed the output.
 
-- **fallback** — the definition opens "A fallback is an alternative plan…",
-  which both reuses the headword and leads with the meta-phrasing the prompt
-  forbids. A real miss.
 - **interesting** — "holding one's interest" reuses the root. Minor.
 - **wordsmith** — "skilled in the use of words" trips the same check, but a
   definition of this word can hardly avoid saying "words". Effectively a false

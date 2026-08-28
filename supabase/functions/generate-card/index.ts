@@ -158,6 +158,10 @@ Rules:
 - definition must be written in ${langName} (the language being learned)
 - The definition is a sentence: start it with a capital letter and end it with a full stop.
 - Write the definition directly — never start with meta-phrases like "This term describes", "This word refers to", "It is a word that", "A term used to". Jump straight to the meaning.
+- Never open the definition by restating the headword. "A fallback is an alternative plan" is wrong
+  twice over: it wastes the first clause, and it breaks the no-shared-stem rule below.
+  Start with the meaning itself: "An alternative plan or method used if the main one fails."
+  The same applies to every shape of this — "X is …", "A X refers to …", "X means …".
 - "translation_ru" is a short Russian translation (1-3 words for a single-word headword,
   a short phrase translation for a chunk headword), required for every card
 - for a SINGLE-WORD headword, the definition must NOT contain the headword or any word sharing
