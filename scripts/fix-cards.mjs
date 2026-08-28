@@ -10,8 +10,9 @@
 // Steps: replace (D1-D3), regen (D4-D5). Run `replace` first: it decides which
 // headwords survive, and `regen` then rewrites their contents.
 //
-// Sign-in: --email or ADMIN_EMAIL from .env.local; the password is typed at
-// the prompt (not echoed, not stored) unless ADMIN_PASSWORD is set.
+// Sign-in, either way:
+//   --token <token>   a session token copied from the browser, no password needed
+//   --email <address>  sign in with a password, typed at the prompt
 //
 // Deleting stale rows from the shared `dictionary` needs a service-role key,
 // since that table only has a read policy. Put SUPABASE_SERVICE_ROLE_KEY in
@@ -33,6 +34,11 @@ const ANON = process.env.VITE_SUPABASE_ANON_KEY
 const EMAIL = (process.argv.includes('--email')
   ? process.argv[process.argv.indexOf('--email') + 1]
   : null) ?? process.env.ADMIN_EMAIL
+// A session token from the browser works instead of a password: it is what the
+// app itself uses, it expires within the hour, and it never has to be stored.
+const TOKEN = (process.argv.includes('--token')
+  ? process.argv[process.argv.indexOf('--token') + 1]
+  : null) ?? process.env.ADMIN_TOKEN
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const APPLY = process.argv.includes('--apply')
@@ -44,8 +50,9 @@ if (!URL_ || !ANON) {
   console.error('Need VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local')
   process.exit(1)
 }
-if (!EMAIL) {
-  console.error('Pass --email you@example.com, or set ADMIN_EMAIL in .env.local')
+if (!EMAIL && !TOKEN) {
+  console.error('Pass --token <session token from the browser>,')
+  console.error('or --email you@example.com to sign in with a password.')
   process.exit(1)
 }
 
@@ -93,18 +100,35 @@ async function askPassword() {
   return pw
 }
 
-const auth = await fetch(`${URL_}/auth/v1/token?grant_type=password`, {
-  method: 'POST',
-  headers: { apikey: ANON, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email: EMAIL, password: await askPassword() }),
-})
-if (!auth.ok) {
-  console.error('Sign-in failed:', (await auth.text()).slice(0, 200))
-  process.exit(1)
+let access_token, USER_ID
+
+if (TOKEN) {
+  access_token = TOKEN.trim()
+  // The user id is the `sub` claim, so no round trip is needed to find it.
+  try {
+    USER_ID = JSON.parse(
+      Buffer.from(access_token.split('.')[1], 'base64url').toString()).sub
+  } catch {
+    console.error('That does not look like a session token.')
+    process.exit(1)
+  }
+  if (!USER_ID) { console.error('Token carries no user id.'); process.exit(1) }
+  console.log(`Using session token for user ${USER_ID}\n`)
+} else {
+  const auth = await fetch(`${URL_}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: ANON, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: EMAIL, password: await askPassword() }),
+  })
+  if (!auth.ok) {
+    console.error('Sign-in failed:', (await auth.text()).slice(0, 200))
+    process.exit(1)
+  }
+  const data = await auth.json()
+  access_token = data.access_token
+  USER_ID = data.user.id
+  console.log(`Signed in as ${EMAIL}\n`)
 }
-const { access_token, user } = await auth.json()
-const USER_ID = user.id
-console.log(`Signed in as ${EMAIL}\n`)
 
 const userHeaders = { apikey: ANON, Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json' }
 const adminHeaders = SERVICE
