@@ -10,6 +10,7 @@ visible whether quality is improving.
 | Date | Lang | Entries | With findings | Share | Note |
 |---|---|---|---|---|---|
 | 2026-08-28 | en | 91 | 32 | 35% | Baseline, before any fixes |
+| 2026-08-28 | en | 89 | 4 | 4% | After the prompt rewrite, the SQL fixes and regeneration |
 
 ### 2026-08-28 by category
 
@@ -61,9 +62,26 @@ the rest of the baseline findings needed reading.
 - **Prompt (P1–P12) — written and deployed 2026-08-28.** Five cases were
   checked by hand in the app and passed, including the one that matters most:
   an invented word is refused rather than given a card.
-- **Data fixes — SQL ready in `scripts/`.** Run `fix-cards-preview.sql` first
-  (read-only), then `fix-cards-apply.sql`.
-- Idiom translations and the follow-up measurement — not started.
+- **Data fixes — done.** `fix-cards-apply.sql` ran; 28 entries were then
+  regenerated against the new prompt. English is at 4 findings out of 89.
+- **Serbian — not reviewed yet.** Deliberately left until English was finished.
+- Idiom translations — not started.
+
+### What is left in English
+
+Four findings, none urgent:
+
+- **fallback** — the definition opens "A fallback is an alternative plan…",
+  which both reuses the headword and leads with the meta-phrasing the prompt
+  forbids. A real miss.
+- **interesting** — "holding one's interest" reuses the root. Minor.
+- **wordsmith** — "skilled in the use of words" trips the same check, but a
+  definition of this word can hardly avoid saying "words". Effectively a false
+  positive.
+- **pull together** — tagged `phrase` yet carries verb forms, so the checker
+  objects. The forms are genuinely useful for a verb phrase; either the prompt
+  should permit them or the check should allow them. A disagreement to settle,
+  not a defect.
 
 Tooling that came out of this work:
 

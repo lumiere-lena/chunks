@@ -280,9 +280,13 @@ async function dictLookup(word: string, language: string): Promise<any | null> {
 }
 
 async function dictSave(entry: { word: string; language: string; pos: string; definition: string; translation_ru?: string; frequency?: string; patterns: string[]; verb_forms?: Record<string, string>; model: string }) {
-  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary`
+  // `on_conflict` is required: without it PostgREST resolves duplicates against
+  // the primary key, which is a generated id and therefore never conflicts, so
+  // the insert fails the (word, language) unique constraint instead of updating.
+  // That silently made every regeneration a no-op for entries already cached.
+  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/dictionary?on_conflict=word,language`
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'apikey': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -292,6 +296,10 @@ async function dictSave(entry: { word: string; language: string; pos: string; de
       },
       body: JSON.stringify(entry),
     })
+    // A non-2xx here used to pass unnoticed, which is how the bug above hid.
+    if (!res.ok) {
+      console.error(`[generate-card] dict save ${res.status}: ${(await res.text()).slice(0, 200)}`)
+    }
   } catch (e) {
     console.error('[generate-card] dict save error:', e)
   }
