@@ -46,6 +46,8 @@ export default function CardDraftScreen() {
           setStatus('limit')
         } else if (data.error === 'inappropriate') {
           setStatus('inappropriate')
+        } else if (data.error === 'unknown_word') {
+          setStatus('unknown')
         } else {
           setStatus('error')
         }
@@ -195,6 +197,30 @@ export default function CardDraftScreen() {
           </div>
         )}
 
+        {/* Unknown word — the model refused to invent an entry for it */}
+        {status === 'unknown' && (
+          <div style={{
+            background: 'var(--s1)', borderRadius: 18, padding: '28px 20px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 32 }}>🔍</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>
+              No such word: "{word}"
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.5 }}>
+              Couldn't find this in {language === 'sr' ? 'Serbian' : 'English'}.<br />
+              Check the spelling and try again.
+            </div>
+            <button
+              onClick={() => navigate(-1)}
+              className="btn btn-acc"
+              style={{ marginTop: 4, width: 'auto', padding: '12px 24px' }}
+            >
+              Back
+            </button>
+          </div>
+        )}
+
         {/* Duplicate */}
         {status === 'duplicate' && card && (
           <div style={{
@@ -242,6 +268,18 @@ export default function CardDraftScreen() {
                 </div>
               </div>
             </div>
+
+            {/* A rare word is still worth offering — just say so before it's saved */}
+            {card.frequency === 'rare' && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: 'var(--bg)', borderRadius: 12, padding: '10px 14px',
+                fontSize: 13, color: 'var(--t2)', lineHeight: 1.45,
+              }}>
+                <span style={{ fontSize: 15, flexShrink: 0 }}>💤</span>
+                <span>Rarely used in everyday speech — you may not meet it often</span>
+              </div>
+            )}
 
             {/* Verb forms */}
             {card.verb_forms && <VerbForms forms={card.verb_forms} language={language} />}

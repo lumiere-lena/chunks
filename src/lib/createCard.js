@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 
 // Generate a card for `word` via the Edge Function and insert it into `cards`.
 // Returns { status, word } where status is one of:
-//   'done' | 'duplicate' | 'inappropriate' | 'locked' | 'error'
+//   'done' | 'duplicate' | 'inappropriate' | 'unknown' | 'locked' | 'error'
 // `word` is the corrected headword returned by the model (when available).
 export async function createCardFromWord({ word, language, userId }) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -25,6 +25,7 @@ export async function createCardFromWord({ word, language, userId }) {
 
     if (!res.ok) {
       if (data.error === 'inappropriate') return { status: 'inappropriate', word }
+      if (data.error === 'unknown_word') return { status: 'unknown', word }
       if (data.error === 'subscription_required') return { status: 'locked', word }
       return { status: 'error', word }
     }

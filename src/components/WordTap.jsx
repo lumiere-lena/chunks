@@ -137,6 +137,7 @@ const RESULT_UI = {
   done:          { icon: '✓', text: (w) => `Added: ${w}` },
   duplicate:     { icon: '📋', text: (w) => `Already in library: ${w}` },
   inappropriate: { icon: '🚫', text: () => `Can't add this word` },
+  unknown:       { icon: '🔍', text: (w) => `No such word: ${w}` },
   locked:        { icon: '🔒', text: () => `Subscription required` },
   error:         { icon: '⚠️', text: () => `Couldn't create card` },
 }
