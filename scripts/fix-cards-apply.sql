@@ -1,12 +1,12 @@
--- ШАГ 2 из 2. ЗАПИСЫВАЕТ ИЗМЕНЕНИЯ. Сначала прогони fix-cards-preview.sql.
+-- STEP 2 of 2. THIS WRITES. Run fix-cards-preview.sql first.
 --
--- Список слов повторяется в каждом запросе намеренно: редактор Supabase не
--- удерживает временную таблицу между запросами, поэтому общего состояния тут
--- быть не может. Запросы идут по порядку и каждый самодостаточен.
+-- The word list is repeated in every statement on purpose: the Supabase editor
+-- does not keep a temp table alive between statements, so there can be no
+-- shared state here. Each statement stands on its own.
 --
--- Порядок важен: склейка до удаления источников, переименование — после.
+-- Order matters: merge before deleting the sources, rename after.
 
--- ---------------------------------------------- 1. abiquated: слова не существует
+-- ------------------------------------------------ 1. abiquated: not a real word
 
 delete from public.reviews r
 using public.cards c
@@ -14,7 +14,7 @@ where r.card_id = c.id and lower(c.word) = 'abiquated';
 
 delete from public.cards where lower(word) = 'abiquated';
 
--- --------------------------- 2. дубли: переносим историю повторений на выживающую
+-- --------------------- 2. duplicates: move review history onto the surviving card
 
 with wordmap(from_word, to_word) as (values
   ('inflate with','inflate'), ('an offsite','offsite'), ('taming','tame'),
@@ -32,7 +32,7 @@ join public.cards t
  and t.language = s.language
 where r.card_id = s.id;
 
--- ------------------------------- 3. дубли: берём более продвинутый прогресс
+-- ------------------------------ 3. duplicates: keep whichever progress is further
 
 with wordmap(from_word, to_word) as (values
   ('inflate with','inflate'), ('an offsite','offsite'), ('taming','tame'),
@@ -56,7 +56,7 @@ where lower(t.word) = m.to_word
   and t.user_id  = s.user_id
   and t.language = s.language;
 
--- ---------------------------------- 4. дубли: источник теперь лишний
+-- ------------------------------------- 4. duplicates: the source is now redundant
 
 with wordmap(from_word, to_word) as (values
   ('inflate with','inflate'), ('an offsite','offsite'), ('taming','tame'),
@@ -71,7 +71,7 @@ where lower(s.word) = m.from_word
   and t.user_id  = s.user_id
   and t.language = s.language;
 
--- ------- 5. одиночные: переименовываем на месте, прогресс остаётся нетронутым
+-- ----------- 5. singles: rename in place, progress survives because we leave it
 
 with wordmap(from_word, to_word) as (values
   ('inflate with','inflate'), ('an offsite','offsite'), ('taming','tame'),
@@ -84,7 +84,7 @@ set word = m.to_word
 from wordmap m
 where lower(c.word) = m.from_word;
 
--- ------------------------------------------------- 6. чистим кэш словаря
+-- ------------------------------------------------- 6. clean the shared cache
 
 with wordmap(from_word, to_word) as (values
   ('inflate with','inflate'), ('an offsite','offsite'), ('taming','tame'),
@@ -98,7 +98,7 @@ where lower(d.word) = m.from_word;
 
 delete from public.dictionary where lower(word) = 'abiquated';
 
--- --------------------------------------------------------------- 7. результат
+-- ----------------------------------------------------------------- 7. result
 
 with wordmap(from_word, to_word) as (values
   ('inflate with','inflate'), ('an offsite','offsite'), ('taming','tame'),
@@ -106,18 +106,18 @@ with wordmap(from_word, to_word) as (values
   ('pulling together','pull together'), ('keep spending on it','keep spending on'),
   ('deprecating','self-deprecating')
 )
-select c.word as слово, c.status as статус, c.review_count as повторов,
-       c.interval_days as интервал, c.next_review_at as следующий
+select c.word as word, c.status as status, c.review_count as reviews,
+       c.interval_days as interval, c.next_review_at as due
 from public.cards c
 where lower(c.word) in (select to_word from wordmap)
 union all
 select
-  'осталось мусора: словарь ' || (
+  'leftovers — dictionary rows: ' || (
     select count(*) from public.dictionary
     where lower(word) in (select from_word from wordmap) or lower(word) = 'abiquated'
-  ) || ', карточек abiquated ' || (
+  ) || ', abiquated cards: ' || (
     select count(*) from public.cards where lower(word) = 'abiquated'
-  ) || ', старых заголовков ' || (
+  ) || ', stale headwords: ' || (
     select count(*) from public.cards where lower(word) in (select from_word from wordmap)
   ),
   null, null, null, null

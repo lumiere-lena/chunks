@@ -1,5 +1,5 @@
--- ШАГ 1 из 2. Только чтение — ни одной операции записи.
--- Показывает, что сделает fix-cards-apply.sql. Прогоняй целиком.
+-- STEP 1 of 2. Read-only — performs no writes at all.
+-- Shows exactly what fix-cards-apply.sql will do. Run the whole file.
 
 with wordmap(from_word, to_word) as (values
   ('inflate with',          'inflate'),
@@ -12,7 +12,7 @@ with wordmap(from_word, to_word) as (values
   ('deprecating',           'self-deprecating')
 ),
 
--- Карточка-источник и карточка-приёмник, если она уже есть.
+-- The card being replaced, alongside the card it would merge into if one exists.
 pairs as (
   select m.from_word, m.to_word,
          s.id as src_id, s.review_count as src_reviews, s.interval_days as src_interval, s.status as src_status,
@@ -25,18 +25,19 @@ pairs as (
    and t.language = s.language
 )
 
-select 'УДАЛИТЬ' as действие,
-       word as слово,
-       'карточка + история повторений' as что,
-       review_count::text as прогресс
+select 'DELETE' as action,
+       word as word,
+       'card + review history' as detail,
+       review_count::text as progress
 from public.cards where lower(word) = 'abiquated'
 
 union all
-select 'СКЛЕИТЬ',
+select 'MERGE',
        from_word || ' → ' || to_word,
-       'повторы ' || coalesce(src_reviews,0) || ' + ' || coalesce(tgt_reviews,0)
+       'reviews ' || coalesce(src_reviews,0) || ' + ' || coalesce(tgt_reviews,0)
          || ' = ' || (coalesce(src_reviews,0) + coalesce(tgt_reviews,0))
-         || ', интервал ' || greatest(src_interval, tgt_interval),
+         || ', interval ' || greatest(src_interval, tgt_interval),
+       -- greatest() would compare these as text, ranking 'new' above 'mastered'
        case
          when 'mastered' in (src_status, tgt_status) then 'mastered'
          when 'learning' in (src_status, tgt_status) then 'learning'
@@ -45,24 +46,24 @@ select 'СКЛЕИТЬ',
 from pairs where tgt_id is not null
 
 union all
-select 'ПЕРЕИМЕНОВАТЬ',
+select 'RENAME',
        from_word || ' → ' || to_word,
-       'прогресс не трогаем',
+       'progress left untouched',
        coalesce(src_reviews,0)::text
 from pairs where tgt_id is null
 
 union all
-select 'НЕТ КАРТОЧКИ',
+select 'NO CARD',
        m.from_word,
-       'есть только строка словаря',
+       'dictionary row only',
        ''
 from wordmap m
 where not exists (select 1 from public.cards c where lower(c.word) = m.from_word)
 
 union all
-select 'ЧИСТИТЬ СЛОВАРЬ',
+select 'CLEAN DICTIONARY',
        word,
-       'строка написана под старый заголовок',
+       'text was written for the old headword',
        ''
 from public.dictionary
 where lower(word) in (select from_word from wordmap) or lower(word) = 'abiquated'

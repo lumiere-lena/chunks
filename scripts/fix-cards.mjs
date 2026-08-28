@@ -48,15 +48,15 @@ if (!URL_ || !ANON || !EMAIL) {
 // Headwords that must go. Each card is moved to `to`, keeping its review
 // progress; `to: null` means the word was never real and the card is dropped.
 const REPLACE = [
-  { from: 'abiquated',            to: null,                     why: 'несуществующее слово' },
-  { from: 'inflate with',         to: 'inflate',                why: 'выдуманный фразовый глагол' },
-  { from: 'an offsite',           to: 'offsite',                why: 'артикль в заголовке' },
-  { from: 'taming',               to: 'tame',                   why: 'герундий вместо инфинитива' },
-  { from: 'in the verge of tears',to: 'on the verge of tears',  why: 'неверный предлог' },
-  { from: 'offhanded statement',  to: 'offhand statement',      why: 'нестандартная форма' },
-  { from: 'pulling together',     to: 'pull together',          why: 'дубль' },
-  { from: 'keep spending on it',  to: 'keep spending on',       why: 'дубль' },
-  { from: 'deprecating',          to: 'self-deprecating',       why: 'живёт только с self-' },
+  { from: 'abiquated',            to: null,                     why: 'not a real word' },
+  { from: 'inflate with',         to: 'inflate',                why: 'invented phrasal verb' },
+  { from: 'an offsite',           to: 'offsite',                why: 'article in the headword' },
+  { from: 'taming',               to: 'tame',                   why: 'gerund instead of infinitive' },
+  { from: 'in the verge of tears',to: 'on the verge of tears',  why: 'wrong preposition' },
+  { from: 'offhanded statement',  to: 'offhand statement',      why: 'non-standard form' },
+  { from: 'pulling together',     to: 'pull together',          why: 'duplicate' },
+  { from: 'keep spending on it',  to: 'keep spending on',       why: 'duplicate' },
+  { from: 'deprecating',          to: 'self-deprecating',       why: 'only lives with self-' },
 ]
 
 // Entries whose text was wrong even though the headword is fine — regenerated
@@ -74,7 +74,7 @@ const REGEN = [
 async function askPassword() {
   if (process.env.ADMIN_PASSWORD) return process.env.ADMIN_PASSWORD
   const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true })
-  process.stdout.write(`Пароль для ${EMAIL}: `)
+  process.stdout.write(`Password for ${EMAIL}: `)
   rl.output.write = () => {} // stop echoing what is typed
   const pw = await new Promise(res => rl.question('', a => { rl.close(); res(a) }))
   process.stdout.write('\n')
@@ -87,12 +87,12 @@ const auth = await fetch(`${URL_}/auth/v1/token?grant_type=password`, {
   body: JSON.stringify({ email: EMAIL, password: await askPassword() }),
 })
 if (!auth.ok) {
-  console.error('Не удалось войти:', (await auth.text()).slice(0, 200))
+  console.error('Sign-in failed:', (await auth.text()).slice(0, 200))
   process.exit(1)
 }
 const { access_token, user } = await auth.json()
 const USER_ID = user.id
-console.log(`Вошли как ${EMAIL}\n`)
+console.log(`Signed in as ${EMAIL}\n`)
 
 const userHeaders = { apikey: ANON, Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json' }
 const adminHeaders = SERVICE
@@ -134,16 +134,16 @@ const log = (s) => console.log(`  ${s}`)
 // ------------------------------------------------------- step: replace / merge
 
 async function stepReplace() {
-  console.log('=== Замена и склейка заголовков ===\n')
+  console.log('=== Replacing and merging headwords ===\n')
 
   for (const { from, to, why } of REPLACE) {
-    console.log(`${from}${to ?? 'удалить'}   (${why})`)
+    console.log(`${from} -> ${to ?? 'delete'}   (${why})`)
     const cards = await myCards(from)
-    if (!cards.length) { log('карточки нет, только строка словаря'); }
+    if (!cards.length) { log('no card, dictionary row only'); }
 
     if (!to) {
       for (const c of cards) {
-        log(`удаляем карточку ${c.id.slice(0, 8)} (повторов: ${c.review_count ?? 0})`)
+        log(`deleting card ${c.id.slice(0, 8)} (reviews: ${c.review_count ?? 0})`)
         if (APPLY) {
           await rest(`reviews?card_id=eq.${c.id}`, { method: 'DELETE' })
           await rest(`cards?id=eq.${c.id}`, { method: 'DELETE' })
@@ -159,11 +159,11 @@ async function stepReplace() {
     try {
       fresh = APPLY ? await generate(to, 'en') : { word: to }
       if (fresh.word && fresh.word.toLowerCase() !== to.toLowerCase()) {
-        log(`⚠️  модель вернула "${fresh.word}" вместо "${to}" — пропускаем, разберись вручную`)
+        log(`WARN  model returned "${fresh.word}" instead of "${to}" — skipped, handle by hand`)
         continue
       }
     } catch (e) {
-      log(`⚠️  не удалось сгенерировать "${to}": ${e.message}`)
+      log(`WARN  could not generate "${to}": ${e.message}`)
       continue
     }
 
@@ -180,7 +180,7 @@ async function stepReplace() {
           status: (c.status === 'mastered' || t.status === 'mastered') ? 'mastered'
                 : (c.status === 'learning' || t.status === 'learning') ? 'learning' : 'new',
         }
-        log(`склейка в ${t.word}: повторов ${c.review_count ?? 0} + ${t.review_count ?? 0} → ${keep.review_count}`)
+        log(`merging into ${t.word}: reviews ${c.review_count ?? 0} + ${t.review_count ?? 0} → ${keep.review_count}`)
         if (APPLY) {
           await rest(`reviews?card_id=eq.${c.id}`, {
             method: 'PATCH', body: JSON.stringify({ card_id: t.id }),
@@ -193,7 +193,7 @@ async function stepReplace() {
         }
       } else {
         // Only the wrong one exists: rename it in place, progress untouched.
-        log(`переименование карточки, прогресс сохраняется (повторов: ${c.review_count ?? 0})`)
+        log(`renaming card, progress preserved (reviews: ${c.review_count ?? 0})`)
         if (APPLY) {
           await rest(`cards?id=eq.${c.id}`, {
             method: 'PATCH', body: JSON.stringify(contentOf(fresh)),
@@ -210,33 +210,33 @@ async function stepReplace() {
 // The shared cache only has a read policy, so this needs the service role.
 async function dropDictionary(word) {
   if (!adminHeaders) {
-    log(`строка словаря "${word}" останется — нет SUPABASE_SERVICE_ROLE_KEY`)
+    log(`dictionary row "${word}" will remain — no SUPABASE_SERVICE_ROLE_KEY`)
     return
   }
-  log(`удаляем строку словаря "${word}"`)
+  log(`deleting dictionary row "${word}"`)
   if (!APPLY) return
   await fetch(`${URL_}/rest/v1/dictionary?word=eq.${q(word)}&language=eq.en`, {
     method: 'DELETE', headers: { ...adminHeaders, Prefer: 'return=minimal' },
   })
   const left = await fetch(`${URL_}/rest/v1/dictionary?select=word&word=eq.${q(word)}&language=eq.en`,
     { headers: { apikey: ANON } }).then(r => r.json())
-  if (left.length) log(`⚠️  строка "${word}" не удалилась — проверь ключ`)
+  if (left.length) log(`WARN  row "${word}" was not deleted — check the key`)
   else changed++
 }
 
 // ------------------------------------------------------------- step: regenerate
 
 async function stepRegen() {
-  console.log('\n=== Перегенерация содержимого ===\n')
+  console.log('\n=== Regenerating entry text ===\n')
 
   for (const word of REGEN) {
     process.stdout.write(`${word.padEnd(22)} `)
-    if (!APPLY) { console.log('(прогон)'); continue }
+    if (!APPLY) { console.log('(dry run)'); continue }
     try {
       const fresh = await generate(word, 'en')
-      if (fresh.error) { console.log(`⚠️  ${fresh.error}`); continue }
+      if (fresh.error) { console.log(`WARN  ${fresh.error}`); continue }
       if (fresh.word.toLowerCase() !== word.toLowerCase()) {
-        console.log(`⚠️  заголовок изменился на "${fresh.word}" — пропускаем`)
+        console.log(`WARN  headword changed to "${fresh.word}" — skipped`)
         continue
       }
       const cards = await myCards(word)
@@ -246,20 +246,20 @@ async function stepRegen() {
         })
         changed++
       }
-      console.log(`✅ ${fresh.frequency ?? ''}${cards.length ? '' : ' (только словарь)'}`)
+      console.log(`OK ${fresh.frequency ?? ''}${cards.length ? '' : ' (dictionary only)'}`)
     } catch (e) {
-      console.log(`❌ ${e.message}`)
+      console.log(`FAIL ${e.message}`)
     }
   }
 }
 
 // ------------------------------------------------------------------------ run
 
-if (!APPLY) console.log('РЕЖИМ ПРОГОНА — ничего не меняется. Добавь --apply.\n')
-if (!SERVICE) console.log('SUPABASE_SERVICE_ROLE_KEY не задан: строки словаря удаляться не будут.\n')
+if (!APPLY) console.log('DRY RUN — nothing is changed. Add --apply.\n')
+if (!SERVICE) console.log('SUPABASE_SERVICE_ROLE_KEY not set: dictionary rows will not be deleted.\n')
 
 if (!STEP || STEP === 'replace') await stepReplace()
 if (!STEP || STEP === 'regen') await stepRegen()
 
-console.log(`\n${APPLY ? `Изменений: ${changed}` : 'Прогон завершён.'}`)
-console.log('Потом: node scripts/check-cards.mjs --lang en')
+console.log(`\n${APPLY ? `Changes: ${changed}` : 'Dry run complete.'}`)
+console.log('Next: node scripts/check-cards.mjs --lang en')

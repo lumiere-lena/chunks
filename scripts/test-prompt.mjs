@@ -39,7 +39,7 @@ const CASES = [
     check: r => r.error === 'unknown_word' },
   { group: 'headword', input: 'zorptastic', lang: 'en', expect: 'unknown_word',
     check: r => r.error === 'unknown_word' },
-  { group: 'headword', input: 'recieve', lang: 'en', expect: 'receive (опечатка чинится)',
+  { group: 'headword', input: 'recieve', lang: 'en', expect: 'receive (typo corrected)',
     check: r => r.word === 'receive' },
 
   // --- P2/P3/P4/P5: headword normalisation ----------------------------------
@@ -47,7 +47,7 @@ const CASES = [
     check: r => r.word === 'offsite' },
   { group: 'headword', input: 'taming', lang: 'en', expect: 'tame',
     check: r => r.word === 'tame' },
-  { group: 'headword', input: 'interesting', lang: 'en', expect: 'interesting (НЕ сводить к interest)',
+  { group: 'headword', input: 'interesting', lang: 'en', expect: 'interesting (must NOT reduce to interest)',
     check: r => r.word === 'interesting' },
   { group: 'headword', input: 'pulling together', lang: 'en', expect: 'pull together',
     check: r => r.word === 'pull together' },
@@ -57,34 +57,34 @@ const CASES = [
     check: r => r.word === 'on the verge of tears' },
   { group: 'headword', input: 'offhanded statement', lang: 'en', expect: 'offhand statement',
     check: r => /^offhand /.test(r.word || '') },
-  { group: 'headword', input: 'come up', lang: 'en', expect: 'come up (предлог НЕ отрезать)',
+  { group: 'headword', input: 'come up', lang: 'en', expect: 'come up (particle must NOT be stripped)',
     check: r => r.word === 'come up' },
 
   // --- P6/P7: one sense per card -------------------------------------------
   { group: 'sense', input: 'abstain', lang: 'en',
-    expect: 'определение нейтральное, покрывает abstain from voting',
+    expect: 'neutral definition that covers abstain from voting',
     check: r => !/enjoy|pleasur|harmful|unhealthy/i.test(r.definition || '') },
   { group: 'sense', input: 'stir', lang: 'en',
-    expect: 'определение покрывает все паттерны, не только размешивание',
+    expect: 'definition covers every pattern, not just stirring a liquid',
     check: r => coversPatterns(r) },
   { group: 'sense', input: 'revel', lang: 'en',
-    expect: 'revel in sth = упиваться',
+    expect: 'revel in sth = to take great pleasure in',
     check: r => /revel in|delight|pleasure|enjoy/i.test(r.definition || '') },
   { group: 'sense', input: 'wind up', lang: 'en',
-    expect: 'одно значение, без смеси «завершить» и «завести часы»',
+    expect: 'one sense only, not conclude mixed with wind a clock',
     check: r => !(/meeting|finish|conclud|end\b/i.test(JSON.stringify(r.patterns))
                && /clock|watch|wound up/i.test(JSON.stringify(r.patterns))) },
   { group: 'sense', input: 'bid', lang: 'en',
-    expect: 'формы соответствуют значению из паттернов',
+    expect: 'forms match the sense the patterns teach',
     check: r => {
       const auction = /auction|bid on|contract|price/i.test(JSON.stringify(r.patterns))
       return !auction || r.verb_forms?.v2 === 'bid'
     } },
 
   // --- P8/P9/P10/P11: roles, frequency, naturalness -------------------------
-  { group: 'quality', input: 'grasp', lang: 'en', expect: 'pos verb / noun, паттерн «a good grasp of»',
+  { group: 'quality', input: 'grasp', lang: 'en', expect: 'pos verb / noun, pattern a good grasp of',
     check: r => /\//.test(r.pos || '') },
-  { group: 'quality', input: 'haul', lang: 'en', expect: 'есть long haul среди паттернов',
+  { group: 'quality', input: 'haul', lang: 'en', expect: 'long haul present among the patterns',
     check: r => /long haul/i.test(JSON.stringify(r.patterns)) },
   { group: 'quality', input: 'evenness', lang: 'en', expect: 'frequency: rare',
     check: r => r.frequency === 'rare' },
@@ -92,10 +92,10 @@ const CASES = [
     check: r => r.frequency === 'common' },
   { group: 'quality', input: 'deprecating', lang: 'en', expect: 'self-deprecating',
     check: r => /self-deprecating/.test(r.word || '') },
-  { group: 'quality', input: 'hesitate', lang: 'en', expect: 'определение с заглавной буквы',
+  { group: 'quality', input: 'hesitate', lang: 'en', expect: 'definition starts with a capital',
     check: r => r.definition && r.definition[0] === r.definition[0].toUpperCase() },
 
-  // --- сербский не должен пострадать от правок ------------------------------
+  // --- Serbian must not regress from the English-driven edits ---------------
   { group: 'sr', input: 'čitam', lang: 'sr', expect: 'čitati',
     check: r => r.word === 'čitati' },
   { group: 'sr', input: 'kuće', lang: 'sr', expect: 'kuća',
@@ -142,16 +142,16 @@ for (const c of cases) {
   }
 
   const ok = (() => { try { return c.check(r) } catch { return false } })()
-  if (ok) { pass++; console.log('✅') }
+  if (ok) { pass++; console.log('PASS') }
   else {
     fail++
-    console.log(`❌  ждали: ${c.expect}`)
-    console.log(`   получили: word="${r.word ?? ''}" pos="${r.pos ?? ''}" freq="${r.frequency ?? ''}"${r.error ? ` error="${r.error}"` : ''}`)
+    console.log(`FAIL  expected: ${c.expect}`)
+    console.log(`   got: word="${r.word ?? ''}" pos="${r.pos ?? ''}" freq="${r.frequency ?? ''}"${r.error ? ` error="${r.error}"` : ''}`)
     if (r.definition) console.log(`   def: ${r.definition}`)
     if (r.patterns) console.log(`   pat: ${JSON.stringify(r.patterns)}`)
     failures.push(c.input)
   }
 }
 
-console.log(`\n✅ ${pass}   ❌ ${fail}`)
-if (failures.length) console.log(`Не прошли: ${failures.join(', ')}`)
+console.log(`\nPassed ${pass}, failed ${fail}`)
+if (failures.length) console.log(`Failing: ${failures.join(', ')}`)

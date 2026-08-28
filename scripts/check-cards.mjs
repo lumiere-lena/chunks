@@ -59,26 +59,26 @@ function structural(e) {
   const single = !w.includes(' ')
   const pos = (e.pos || '').toLowerCase()
 
-  if (!(e.translation_ru || '').trim()) out.push('нет русского перевода')
+  if (!(e.translation_ru || '').trim()) out.push('no Russian translation')
 
   // The prompt forbids a single-word definition from reusing the headword's stem.
   if (single && w.length >= 5 && def.toLowerCase().includes(w.slice(0, 5))) {
-    out.push('определение повторяет корень слова')
+    out.push('definition reuses the headword stem')
   }
 
-  if (pats.length < 2) out.push(`мало паттернов (${pats.length})`)
+  if (pats.length < 2) out.push(`too few patterns (${pats.length})`)
   // Patterns may be plain strings or, once idiom translations land, objects.
   if (pats.some(p => !String(typeof p === 'string' ? p : p.text ?? '').includes('<<'))) {
-    out.push('паттерн без разметки <<>>')
+    out.push('pattern missing << >> markers')
   }
 
   // pos may be composite, e.g. "verb / noun".
   const isVerb = /\bverb\b|\bglagol\b/.test(pos)
-  if (isVerb && !e.verb_forms) out.push('глагол без форм')
-  if (!isVerb && e.verb_forms) out.push('формы глагола у не-глагола')
+  if (isVerb && !e.verb_forms) out.push('verb without forms')
+  if (!isVerb && e.verb_forms) out.push('verb forms on a non-verb')
 
-  if (ARTICLES.test(w)) out.push('артикль в заголовке')
-  if (def && def[0] !== def[0].toUpperCase()) out.push('определение со строчной буквы')
+  if (ARTICLES.test(w)) out.push('article in the headword')
+  if (def && def[0] !== def[0].toUpperCase()) out.push('definition starts lowercase')
 
   return out
 }
@@ -117,16 +117,16 @@ for (const { notes } of found) for (const n of notes) {
 
 const pct = entries.length ? Math.round((flagged.size / entries.length) * 100) : 0
 
-console.log(`\nСтатей: ${entries.length}${langFilter ? ` (${langFilter})` : ''}`)
-console.log(`С замечаниями: ${flagged.size} (${pct}%)\n`)
+console.log(`\nEntries: ${entries.length}${langFilter ? ` (${langFilter})` : ''}`)
+console.log(`With findings: ${flagged.size} (${pct}%)\n`)
 
 if (dupes.length) {
-  console.log(`Пересекающиеся заголовки (${dupes.length}):`)
+  console.log(`Overlapping headwords (${dupes.length}):`)
   for (const d of dupes) console.log(`  ${d.join(' / ')}`)
   console.log()
 }
 if (counts.size) {
-  console.log('Формальные замечания:')
+  console.log('Structural findings:')
   for (const [k, n] of [...counts].sort((a, b) => b[1] - a[1])) {
     console.log(`  ${String(n).padStart(3)}  ${k}`)
   }
@@ -135,27 +135,27 @@ if (counts.size) {
 
 // Ready to paste into the history table in docs/card-quality.md
 const today = new Date().toISOString().slice(0, 10)
-console.log('Строка для docs/card-quality.md:')
-console.log(`| ${today} | ${langFilter ?? 'все'} | ${entries.length} | ${flagged.size} | ${pct}% |  |\n`)
+console.log('Row for docs/card-quality.md:')
+console.log(`| ${today} | ${langFilter ?? 'all'} | ${entries.length} | ${flagged.size} | ${pct}% |  |\n`)
 
 if (mdPath) {
   const md = []
-  md.push(`# Ревью карточек — ${today}\n`)
-  md.push(`Статей: **${entries.length}**, с замечаниями: **${flagged.size}** (${pct}%).\n`)
-  if (dupes.length) md.push(`## Пересекающиеся заголовки\n\n${dupes.map(d => `- ${d.join(' / ')}`).join('\n')}\n`)
+  md.push(`# Card review — ${today}\n`)
+  md.push(`Entries: **${entries.length}**, with findings: **${flagged.size}** (${pct}%).\n`)
+  if (dupes.length) md.push(`## Overlapping headwords\n\n${dupes.map(d => `- ${d.join(' / ')}`).join('\n')}\n`)
   if (found.length) {
-    md.push('## Формальные замечания\n')
-    md.push('| Слово | Язык | Замечание |')
+    md.push('## Structural findings\n')
+    md.push('| Word | Lang | Finding |')
     md.push('|---|---|---|')
     for (const { e, notes } of found) md.push(`| ${e.word} | ${e.language} | ${notes.join('; ')} |`)
     md.push('')
   }
-  md.push('## Все статьи\n')
+  md.push('## All entries\n')
   for (const e of entries) {
     const mark = flagged.has(e.word) ? ' ⚠️' : ''
     md.push(`### ${e.word} · ${e.language}${mark}\n`)
     md.push(`**${e.pos}** — ${e.definition}\n`)
-    md.push(`*${e.translation_ru || '_нет перевода_'}*\n`)
+    md.push(`*${e.translation_ru || '_no translation_'}*\n`)
     for (const p of (e.patterns || [])) {
       const text = typeof p === 'string' ? p : p.text ?? ''
       md.push(`- ${text.replace(/<</g, '**').replace(/>>/g, '**')}`)
@@ -163,5 +163,5 @@ if (mdPath) {
     md.push('')
   }
   writeFileSync(mdPath, md.join('\n'))
-  console.log(`Полный отчёт записан: ${mdPath}`)
+  console.log(`Full report written to ${mdPath}`)
 }
