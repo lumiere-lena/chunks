@@ -26,6 +26,8 @@ export default function LibraryScreen() {
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
+  const [regeneratingId, setRegeneratingId] = useState(null)
+  const [regenError, setRegenError] = useState(null)
 
   const tapDisabled = plan === 'free'
   const wt = useWordTap({
@@ -52,6 +54,48 @@ export default function LibraryScreen() {
   async function handleDelete(id) {
     setCards(prev => prev.filter(c => c.id !== id))
     await supabase.from('cards').delete().eq('id', id)
+  }
+
+  // Rewrite a card's text from the current prompt. Only the content is
+  // replaced — interval, ease and review count stay exactly as they are, so
+  // rewording a card never costs you the progress you built on it.
+  async function handleRegenerate(card) {
+    if (regeneratingId) return
+    setRegeneratingId(card.id)
+    setRegenError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-card`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ word: card.word, language: activeLang, regenerate: true }),
+        }
+      )
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'failed')
+
+      const update = {
+        word: data.word,
+        pos: data.pos,
+        definition: data.definition,
+        patterns: data.patterns,
+        translation_ru: data.translation_ru ?? null,
+        verb_forms: data.verb_forms ?? null,
+      }
+      const { error } = await supabase.from('cards').update(update).eq('id', card.id)
+      if (error) throw error
+
+      setCards(prev => prev.map(c => (c.id === card.id ? { ...c, ...update } : c)))
+    } catch {
+      setRegenError(card.id)
+    } finally {
+      setRegeneratingId(null)
+    }
   }
 
   const filtered = filter === 'all' ? cards : cards.filter(c => c.status === filter)
@@ -225,11 +269,40 @@ export default function LibraryScreen() {
                     </div>
                   )}
 
-                  {!tapDisabled && (
-                    <div style={{ fontSize: 11.5, color: 'var(--t3)', fontWeight: 600, textAlign: 'center' }}>
-                      Tap any word to add it as a card
-                    </div>
-                  )}
+                  {/* Rewrites the entry against the current prompt, keeping the
+                      card's review progress — the draft screen can't do this
+                      for a word already in the library. */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 12, paddingTop: 2,
+                  }}>
+                    {!tapDisabled ? (
+                      <span style={{ fontSize: 11.5, color: 'var(--t3)', fontWeight: 600 }}>
+                        Tap any word to add it as a card
+                      </span>
+                    ) : <span />}
+                    <button
+                      onClick={() => handleRegenerate(card)}
+                      disabled={regeneratingId === card.id}
+                      style={{
+                        flexShrink: 0, background: 'none', border: 'none', fontFamily: 'inherit',
+                        display: 'flex', alignItems: 'center', gap: 5, padding: 0,
+                        fontSize: 12, fontWeight: 700,
+                        color: regenError === card.id ? 'var(--hard-c)' : 'var(--t3)',
+                        cursor: regeneratingId === card.id ? 'default' : 'pointer',
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                           strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"
+                           style={regeneratingId === card.id
+                             ? { animation: 'spin 0.9s linear infinite' } : undefined}>
+                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5"/>
+                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>
+                      </svg>
+                      {regeneratingId === card.id ? 'Regenerating…'
+                        : regenError === card.id ? 'Failed — retry' : 'Regenerate'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
