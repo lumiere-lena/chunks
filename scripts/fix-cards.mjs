@@ -5,13 +5,13 @@
 // Dry run by default — prints the plan and changes nothing:
 //   node scripts/fix-cards.mjs
 //   node scripts/fix-cards.mjs --apply
-//   node scripts/fix-cards.mjs --step merge --apply
+//   node scripts/fix-cards.mjs --step regen --apply --email you@example.com
 //
 // Steps: replace (D1-D3), regen (D4-D5). Run `replace` first: it decides which
 // headwords survive, and `regen` then rewrites their contents.
 //
-// Sign-in: ADMIN_EMAIL from .env.local, password from ADMIN_PASSWORD or typed
-// at the prompt (not echoed, not stored).
+// Sign-in: --email or ADMIN_EMAIL from .env.local; the password is typed at
+// the prompt (not echoed, not stored) unless ADMIN_PASSWORD is set.
 //
 // Deleting stale rows from the shared `dictionary` needs a service-role key,
 // since that table only has a read policy. Put SUPABASE_SERVICE_ROLE_KEY in
@@ -30,7 +30,9 @@ for (const line of readFileSync(envPath, 'utf8').split('\n')) {
 
 const URL_ = process.env.VITE_SUPABASE_URL
 const ANON = process.env.VITE_SUPABASE_ANON_KEY
-const EMAIL = process.env.ADMIN_EMAIL
+const EMAIL = (process.argv.includes('--email')
+  ? process.argv[process.argv.indexOf('--email') + 1]
+  : null) ?? process.env.ADMIN_EMAIL
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const APPLY = process.argv.includes('--apply')
@@ -38,8 +40,12 @@ const STEP = process.argv.includes('--step')
   ? process.argv[process.argv.indexOf('--step') + 1]
   : null
 
-if (!URL_ || !ANON || !EMAIL) {
-  console.error('Need VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and ADMIN_EMAIL in .env.local')
+if (!URL_ || !ANON) {
+  console.error('Need VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local')
+  process.exit(1)
+}
+if (!EMAIL) {
+  console.error('Pass --email you@example.com, or set ADMIN_EMAIL in .env.local')
   process.exit(1)
 }
 
@@ -62,11 +68,17 @@ const REPLACE = [
 // Entries whose text was wrong even though the headword is fine — regenerated
 // against the new prompt. Includes everything that was missing a translation.
 const REGEN = [
+  // Text was wrong under the old prompt.
   'abstain', 'stir', 'revel', 'grasp', 'wind up', 'haul', 'bid',
   'dead weight', 'prone to indecision', 'blown off the map', 'evenness',
   'wordsmith', 'hesitate',
+  // Were missing a Russian translation.
   'determination', 'fallback', 'feeble', 'generic', 'grit', 'passion',
   'ransom', 'wimpy',
+  // Renamed by fix-cards-apply.sql: the headword is right but the text still
+  // describes the old one.
+  'inflate', 'tame', 'on the verge of tears', 'offhand statement',
+  'pull together', 'self-deprecating', 'keep spending on',
 ]
 
 // ------------------------------------------------------------------- plumbing
