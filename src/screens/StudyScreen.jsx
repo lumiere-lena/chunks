@@ -81,8 +81,6 @@ export default function StudyScreen() {
   const [done, setDone] = useState(false)
   const [remainingCount, setRemainingCount] = useState(0)
   const [peeked, setPeeked] = useState(false)
-  // First letter shown as a hint: recall instead of guessing, graded OK at best.
-  const [hinted, setHinted] = useState(false)
   const [learnedSessions, setLearnedSessions] = useState([])
   // Grade for the current card, decided by how the user answered (typed / gave up).
   const [autoGrade, setAutoGrade] = useState(null)
@@ -171,7 +169,6 @@ export default function StudyScreen() {
       setIndex(i => i + 1)
       setRevealed(false)
       setPeeked(false)
-      setHinted(false)
       setAutoGrade(null)
     }
   }
@@ -255,7 +252,6 @@ export default function StudyScreen() {
                   setIndex(0)
                   setRevealed(false)
                   setPeeked(false)
-      setHinted(false)
                   setAutoGrade(null)
                   setResults([])
                   setDone(false)
@@ -413,16 +409,12 @@ export default function StudyScreen() {
 
               <WordInput
                 word={card.word}
-                hinted={hinted}
                 onSolved={(rating) => { setAutoGrade(rating); setRevealed(true) }}
               />
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-                {card.translation_ru && (
-                  <TranslationPeek text={card.translation_ru} peeked={peeked} onPeek={() => setPeeked(true)} />
-                )}
-                {!hinted && <FirstLetterHint onHint={() => setHinted(true)} />}
-              </div>
+              {card.translation_ru && (
+                <TranslationPeek text={card.translation_ru} peeked={peeked} onPeek={() => setPeeked(true)} />
+              )}
 
               <div style={{ height: 1, background: 'var(--border)' }} />
 
@@ -510,8 +502,10 @@ const isLetter = (c) => /\p{L}/u.test(c)
 // wrong letters turn red immediately; a fully correct entry auto-reveals.
 // Diacritics are matched leniently (c=č, s=š, z=ž, d=đ). Spaces/hyphens are
 // shown as separators and skipped by the typing cursor.
-function WordInput({ word, hinted, onSolved }) {
+function WordInput({ word, onSolved }) {
   const [typed, setTyped] = useState('')
+  // First letter shown as a hint, from the bulb in the empty first slot.
+  const [hinted, setHinted] = useState(false)
   const inputRef = useRef(null)
   const solvedRef = useRef(false)
   const mistakeRef = useRef(false) // any wrong keystroke during this attempt
@@ -521,21 +515,24 @@ function WordInput({ word, hinted, onSolved }) {
 
   useEffect(() => {
     setTyped('')
+    setHinted(false)
     solvedRef.current = false
     mistakeRef.current = false
     const t = setTimeout(() => inputRef.current?.focus(), 60)
     return () => clearTimeout(t)
   }, [word])
 
-  // The hint types the first letter for the user and costs the Easy grade:
-  // whatever was typed so far is replaced, and the attempt counts as a mistake.
-  useEffect(() => {
-    if (!hinted || solvedRef.current) return
+  // The hint lets the user recall the word instead of guessing it, and costs
+  // the Easy grade: the attempt counts as a mistake, so OK at best.
+  function showFirstLetter(e) {
+    e.stopPropagation()
+    if (solvedRef.current) return
     mistakeRef.current = true
+    setHinted(true)
     setTyped(letters[0])
     flagAndCheck(letters[0])
     inputRef.current?.focus()
-  }, [hinted]) // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   // Flag a mistake if any entered character (ignoring diacritics) is wrong, then
   // auto-reveal once the whole word is correct — Easy if flawless, else OK.
@@ -635,15 +632,23 @@ function WordInput({ word, hinted, onSolved }) {
         } else if (isCurrent) {
           borderColor = 'var(--acc)'
         }
+        // Until anything is typed, the first slot offers the hint.
+        const bulb = idx === 0 && typed.length === 0
         return (
-          <span key={i} style={{
+          <span key={i} onClick={bulb ? showFirstLetter : undefined} aria-label={bulb ? 'Show first letter' : undefined} style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             width: slot, flexShrink: 0, height,
             borderBottom: '2.5px solid ' + borderColor,
             fontSize, fontWeight: 800, color: textColor, lineHeight: 1,
             transition: 'color 0.1s, border-color 0.1s',
+            cursor: bulb ? 'pointer' : undefined,
           }}>
-            {typedCh ?? ''}
+            {bulb ? (
+              <svg width={fontSize * 0.85} height={fontSize * 0.85} viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18h6"/><path d="M10 22h4"/>
+                <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/>
+              </svg>
+            ) : typedCh ?? ''}
           </span>
         )
       })}
@@ -681,25 +686,6 @@ function TranslationPeek({ text, peeked, onPeek }) {
     >
       {eye}
       Translation
-    </button>
-  )
-}
-
-function FirstLetterHint({ onHint }) {
-  return (
-    <button
-      onClick={onHint}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 7,
-        background: 'var(--s2)', border: 'none', borderRadius: 10, padding: '7px 12px',
-        color: 'var(--t2)', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-      }}
-    >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 18h6"/><path d="M10 22h4"/>
-        <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/>
-      </svg>
-      First letter
     </button>
   )
 }
