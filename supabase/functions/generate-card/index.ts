@@ -107,6 +107,11 @@ If a SINGLE-WORD headword is genuinely common in two roles, give both, most comm
 separated by " / " — e.g. "verb / noun" (${isSr ? '"glagol / imenica"' : '"noun / adjective"'}).
 Only do this when both roles are in everyday use; do not list a role that is rare or technical.
 When you list two roles, the definition MUST cover both, and the patterns must show both.
+Covering two roles is the situation where definitions most often fall back on naming the headword
+("An animal that is tame is not wild. To tame an animal means to bring it under control.") —
+that is forbidden, see the no-headword and no-shared-stem rules below. Join the two senses in one
+paraphrase instead: "Not wild or dangerous, having been trained to live with humans; or to bring a
+wild creature under control and make it gentle."
 
 FREQUENCY — the "frequency" field:
 How often the headword is actually used in everyday modern ${langName}:
@@ -168,17 +173,25 @@ Rules:
   its root/stem (e.g. for "greatness" do not use "great", "greatly"; for "decision" do not use
   "decide"). Explain the meaning using different vocabulary — paraphrase instead. This restriction
   does not apply to chunk headwords (the definition may reuse the phrase's own words).
-- Each pattern must be a meaningful collocation (4-10 words) — not a bare two-word pair, but not a full sentence either.
-  Include enough context to show a real situation: a subject, an object, or a typical complement.
-  Use sth/sb/smn placeholders for generic objects when helpful.
+- A pattern is a PHRASE, never a sentence. It is the fragment a learner slots into their own
+  speech, so it must not come with a ready-made subject and finite verb wrapped around it.
+  Concretely: do NOT start a pattern with a subject pronoun (I/you/he/she/it/we/they) or with a
+  subject noun phrase that governs the verb, and do NOT write it as something that could stand
+  alone as a sentence. 4-8 words.
+  BAD:  "it took a long time to <<tame>> the wild horse" (a sentence)
+  GOOD: "<<tame>> a wild animal"
+  BAD:  "the lion was too dangerous to <<tame>>" (a sentence)
+  GOOD: "too dangerous to <<tame>>"
+- Being a phrase is not licence to be bare. Give the word its typical company — the object,
+  complement or preposition it actually travels with. Use sth/sb/smn placeholders for generic slots.
   BAD:  "derogatory remarks" (too bare, no context)
   GOOD: "make <<derogatory>> remarks about sb"
-  BAD:  "rapidly proliferate" (no subject)
-  GOOD: "misinformation can rapidly <<proliferate>>"
+  BAD:  "rapidly proliferate" (no company at all)
+  GOOD: "allow misinformation to rapidly <<proliferate>>"
 - Every pattern must be something a native speaker would actually say. Prefer the phrasing that
   is genuinely common over one that is merely grammatical.
   BAD:  "the team carried the <<dead weight>>" (grammatical but nobody says it)
-  GOOD: "he's just <<dead weight>> on the team"
+  GOOD: "just <<dead weight>> on the team"
   BAD:  "achieve greater <<evenness>> across the board" (reads like machine-translated boilerplate)
 - Choose the patterns the learner will actually meet. If a word's most frequent real use is a
   fixed expression, that expression belongs in the patterns — do not fill the card with literal
@@ -197,8 +210,8 @@ Rules:
   e.g. for "effort": "make a conscious <<effort>> to do sth", "combined <<efforts>> of the team"
 - For a CHUNK headword (multi-word), wrap the ENTIRE phrase in <<double angle brackets>> and vary
   the surrounding sentence context across patterns instead of varying the phrase's own form:
-  e.g. for "take into account": "you need to <<take into account>> the extra costs",
-  "the plan doesn't <<take into account>> last-minute changes"
+  e.g. for "take into account": "<<take into account>> the extra costs",
+  "fail to <<take into account>> last-minute changes"
 - 2-3 patterns showing real collocations and grammatical constructions`
 
   console.log(`[generate-card] model=${MODEL_ID}, word="${word}", lang=${langName}`)

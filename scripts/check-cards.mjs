@@ -14,6 +14,7 @@
 
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
+import { structural, stem, patternText } from './lib/card-checks.mjs'
 
 const envPath = resolve(import.meta.dirname, '..', '.env.local')
 for (const line of readFileSync(envPath, 'utf8').split('\n')) {
@@ -49,48 +50,9 @@ if (!Array.isArray(entries)) {
 
 // ------------------------------------------------------------ structural checks
 
-const ARTICLES = /^(a|an|the)\s/i
-
-function structural(e) {
-  const out = []
-  const w = (e.word || '').toLowerCase().trim()
-  const def = e.definition || ''
-  const pats = Array.isArray(e.patterns) ? e.patterns : []
-  const single = !w.includes(' ')
-  const pos = (e.pos || '').toLowerCase()
-
-  if (!(e.translation_ru || '').trim()) out.push('no Russian translation')
-
-  // The prompt forbids a single-word definition from reusing the headword's stem.
-  if (single && w.length >= 5 && def.toLowerCase().includes(w.slice(0, 5))) {
-    out.push('definition reuses the headword stem')
-  }
-
-  if (pats.length < 2) out.push(`too few patterns (${pats.length})`)
-  // Patterns may be plain strings or, once idiom translations land, objects.
-  if (pats.some(p => !String(typeof p === 'string' ? p : p.text ?? '').includes('<<'))) {
-    out.push('pattern missing << >> markers')
-  }
-
-  // pos may be composite, e.g. "verb / noun".
-  const isVerb = /\bverb\b|\bglagol\b/.test(pos)
-  if (isVerb && !e.verb_forms) out.push('verb without forms')
-  if (!isVerb && e.verb_forms) out.push('verb forms on a non-verb')
-
-  if (ARTICLES.test(w)) out.push('article in the headword')
-  if (def && def[0] !== def[0].toUpperCase()) out.push('definition starts lowercase')
-
-  return out
-}
+// Shared with bench-cards.mjs on purpose — see scripts/lib/card-checks.mjs.
 
 // --------------------------------------------------------- duplicate headwords
-
-function stem(w) {
-  return w.toLowerCase().trim().replace(/\bit$/, '').trim()
-    .split(/\s+/)
-    .map(t => t.replace(/ing$/, '').replace(/e?d$/, ''))
-    .join(' ')
-}
 
 const buckets = new Map()
 for (const e of entries) {
@@ -157,8 +119,7 @@ if (mdPath) {
     md.push(`**${e.pos}** — ${e.definition}\n`)
     md.push(`*${e.translation_ru || '_no translation_'}*\n`)
     for (const p of (e.patterns || [])) {
-      const text = typeof p === 'string' ? p : p.text ?? ''
-      md.push(`- ${text.replace(/<</g, '**').replace(/>>/g, '**')}`)
+      md.push(`- ${patternText(p).replace(/<</g, '**').replace(/>>/g, '**')}`)
     }
     md.push('')
   }

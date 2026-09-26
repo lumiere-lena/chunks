@@ -46,7 +46,8 @@ parts:
    of speech, definitions that do not cover their patterns, unnatural
    collocations.
 
-The automated half lives in `scripts/check-cards.mjs`:
+The automated half lives in `scripts/lib/card-checks.mjs`, shared by
+`check-cards.mjs` and `bench-cards.mjs` so the two can never drift apart:
 
 ```
 node scripts/check-cards.mjs --lang en
@@ -342,3 +343,43 @@ Settled 2026-08-28.
    `antiquated` is not it. Nothing replaces it.
 3. **Review progress is carried over** when duplicates are merged, not reset.
 4. **Composite `pos`** (`verb / noun`) accepted, see P8.
+
+---
+
+## The benchmark
+
+Regenerating the dictionary overwrites it in place and keeps no history, so a
+prompt change that made definitions worse used to leave nothing to compare
+against. `scripts/bench-cards.mjs` is the answer, and it is deliberately small:
+25 words, one or two per failure category listed above, each carrying a `why`
+that says what it guards.
+
+```
+node scripts/bench-cards.mjs            # run, save a snapshot, diff vs the last
+node scripts/bench-cards.mjs --lang en
+node scripts/bench-cards.mjs --no-save  # look without recording
+```
+
+Snapshots land in `bench/` and are committed — that is where the history lives,
+not in the database. Generation runs with `dryRun`, so the shared dictionary is
+neither read nor written and a benchmark run can never change what the app
+serves.
+
+Read the diff for the *shape* of a change — a finding gained or lost, a headword
+moving, a pattern turning back into a sentence. The model runs at temperature
+0.3, so wording drifts between runs on its own and a reworded clause means
+nothing by itself.
+
+What the benchmark does not do: it looks forward only. Entries already
+overwritten by an earlier regeneration are not recoverable from it.
+
+### Checks added 2026-08-31
+
+- **definition reuses the headword stem** now runs from 4 letters instead of 5,
+  anchored to a word boundary. At `>= 5` it silently skipped `tame`, whose
+  definition opened with "An animal that is tame is not wild"; the boundary is
+  what makes the shorter threshold safe (`form` no longer matches inside
+  `information`).
+- **pattern reads as a sentence** — a pattern beginning with a subject pronoun.
+  Patterns had drifted into full sentences because the prompt's own GOOD
+  examples were sentences.
