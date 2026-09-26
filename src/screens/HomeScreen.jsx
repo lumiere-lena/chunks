@@ -57,6 +57,7 @@ export default function HomeScreen() {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('language', activeLang)
+        .neq('status', 'mastered')
         .lte('next_review_at', today),
       supabase
         .from('reviews')

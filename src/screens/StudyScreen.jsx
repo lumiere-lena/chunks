@@ -7,42 +7,35 @@ import { groupReviewsBySession, formatSessionTime } from '../lib/learnedToday'
 import VerbForms from '../components/VerbForms'
 import SpeakButton from '../components/SpeakButton'
 import Headword from '../components/Headword'
+import { foldChar } from '../lib/fold'
 
-// SM-2-ish SRS — 3-button: hard / ok / easy
-// First reviews use fixed intervals (1 → 1 → 3 → 7), then ease_factor kicks in
-const EARLY_INTERVALS = { ok: [1, 3, 7], easy: [3, 7, 14] }
+// A fixed ladder instead of SM-2. Each flawless answer (Easy) moves the card
+// one step up; a flawless answer after the top gap retires it as mastered and
+// it is never shown again (Library can bring it back). With no mistakes that
+// is five shows: day 0, 3, 10, 24 and 45.
+//   easy — one step up, or mastered from the top step
+//   ok   — typed with a mistake: the same gap once more
+//   hard — gave up (Show word): tomorrow, then the ladder from the bottom
+// SM-2 grew the gaps without end (14 → 54 → 210 days) and never let a word go.
+const LADDER = [3, 7, 14, 21]
 
 function applyRating(card, rating) {
-  let { interval_days, ease_factor } = card
-  let status = card.status
-  const reviewCount = card.review_count ?? 0
+  const gap = card.interval_days ?? 1 // the gap that has just ended
+  let interval_days = gap
+  let status = 'learning'
 
   if (rating === 'hard') {
-    interval_days = Math.max(1, Math.round(interval_days * 0.7))
-    ease_factor = Math.max(1.3, ease_factor - 0.15)
-    status = 'learning'
-  } else if (rating === 'ok') {
-    if (reviewCount < 3) {
-      interval_days = EARLY_INTERVALS.ok[reviewCount]
-    } else {
-      interval_days = Math.max(1, Math.round(interval_days * ease_factor))
-    }
-    status = interval_days >= 21 ? 'mastered' : 'learning'
+    interval_days = 1
   } else if (rating === 'easy') {
-    if (reviewCount < 3) {
-      interval_days = EARLY_INTERVALS.easy[reviewCount]
-    } else {
-      interval_days = Math.max(1, Math.round(interval_days * ease_factor * 1.3))
-    }
-    ease_factor = Math.min(3.0, ease_factor + 0.15)
-    status = interval_days >= 21 ? 'mastered' : 'learning'
+    if (gap >= LADDER[LADDER.length - 1]) status = 'mastered'
+    else interval_days = LADDER.find(d => d > gap)
   }
 
   const next = new Date()
   next.setDate(next.getDate() + interval_days)
   const next_review_at = next.toISOString().split('T')[0]
 
-  return { interval_days, ease_factor, status, next_review_at, review_count: reviewCount + 1 }
+  return { interval_days, status, next_review_at, review_count: (card.review_count ?? 0) + 1 }
 }
 
 const RATINGS = [
@@ -122,6 +115,7 @@ export default function StudyScreen() {
       .select('*')
       .eq('user_id', user.id)
       .eq('language', activeLang)
+      .neq('status', 'mastered')
       .lte('next_review_at', today)
       .order('next_review_at', { ascending: true })
 
@@ -297,8 +291,9 @@ export default function StudyScreen() {
 
   // Preview interval for rating buttons
   function previewInterval(rating) {
-    const { interval_days } = applyRating(card, rating)
-    return interval_days === 1 ? '1 day' : `${interval_days} days`
+    const { interval_days, status } = applyRating(card, rating)
+    if (status === 'mastered') return 'mastered, you won\'t see it again'
+    return `next in ${interval_days === 1 ? '1 day' : `${interval_days} days`}`
   }
 
   // ── Study card ────────────────────────────────────────────────────────────
@@ -481,7 +476,7 @@ export default function StudyScreen() {
                 fontSize: 13.5, fontWeight: 700, color: g.color,
               }}>
                 {g.icon}
-                {g.label} · next in {previewInterval(autoGrade)}
+                {g.label} · {previewInterval(autoGrade)}
               </div>
             )
           })()}
@@ -501,12 +496,7 @@ export default function StudyScreen() {
 const ROW_WIDTH = 299
 const SEP_UNITS = 0.55
 
-const DIACRITIC_FOLD = { 'č': 'c', 'ć': 'c', 'đ': 'd', 'š': 's', 'ž': 'z' }
 const isLetter = (c) => /\p{L}/u.test(c)
-function fold(ch) {
-  const l = ch.toLowerCase()
-  return DIACRITIC_FOLD[l] ?? l
-}
 
 // Type-the-word input. One underlined slot per letter (length is visible);
 // wrong letters turn red immediately; a fully correct entry auto-reveals.
@@ -533,11 +523,11 @@ function WordInput({ word, onSolved }) {
   // auto-reveal once the whole word is correct — Easy if flawless, else OK.
   function flagAndCheck(str) {
     const cleaned = [...str].filter(isLetter)
-    if (cleaned.some((ch, i) => fold(ch) !== fold(letters[i]))) {
+    if (cleaned.some((ch, i) => foldChar(ch) !== foldChar(letters[i]))) {
       mistakeRef.current = true
     }
     if (cleaned.length === letters.length && !solvedRef.current
-        && letters.every((ch, i) => fold(cleaned[i]) === fold(ch))) {
+        && letters.every((ch, i) => foldChar(cleaned[i]) === foldChar(ch))) {
       solvedRef.current = true
       const rating = mistakeRef.current ? 'ok' : 'easy'
       setTimeout(() => onSolved(rating), 320)
@@ -621,7 +611,7 @@ function WordInput({ word, onSolved }) {
         let borderColor = 'var(--border)'
         let textColor = 'var(--t1)'
         if (typedCh != null) {
-          const ok = fold(typedCh) === fold(ch)
+          const ok = foldChar(typedCh) === foldChar(ch)
           textColor = ok ? 'var(--acc)' : RED
           borderColor = ok ? 'var(--acc)' : RED
         } else if (isCurrent) {

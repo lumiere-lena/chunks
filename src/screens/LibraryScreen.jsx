@@ -6,6 +6,7 @@ import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../com
 import VerbForms from '../components/VerbForms'
 import SpeakButton from '../components/SpeakButton'
 import Headword from '../components/Headword'
+import { foldText } from '../lib/fold'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -58,6 +59,15 @@ export default function LibraryScreen() {
     await supabase.from('cards').delete().eq('id', card.id).eq('user_id', user.id)
   }
 
+  // A mastered card is out of study for good; this puts it back at the bottom
+  // of the ladder, due today.
+  async function handleReviewAgain(card) {
+    const today = new Date().toISOString().split('T')[0]
+    const updates = { status: 'learning', interval_days: 1, next_review_at: today }
+    setCards(prev => prev.map(c => c.id === card.id ? { ...c, ...updates } : c))
+    await supabase.from('cards').update(updates).eq('id', card.id).eq('user_id', user.id)
+  }
+
   // Rewrite a card's text from the current prompt. Only the content is
   // replaced — interval, ease and review count stay exactly as they are, so
   // rewording a card never costs you the progress you built on it.
@@ -100,11 +110,14 @@ export default function LibraryScreen() {
     }
   }
 
-  // Search matches the word or its Russian translation, on top of the status filter.
+  // Search matches the word or its Russian translation, on top of the status
+  // filter. The word side is folded, so Serbian matches without diacritics or in
+  // Cyrillic; the translation side is not, since folding would break Russian.
   const q = query.trim().toLowerCase()
+  const fq = foldText(q)
   const filtered = cards.filter(c =>
     (filter === 'all' || c.status === filter) &&
-    (!q || c.word.toLowerCase().includes(q) || (c.translation_ru ?? '').toLowerCase().includes(q))
+    (!q || foldText(c.word).includes(fq) || (c.translation_ru ?? '').toLowerCase().includes(q))
   )
 
   return (
@@ -288,6 +301,24 @@ export default function LibraryScreen() {
                         </div>
                       ))}
                     </div>
+                  )}
+
+                  {card.status === 'mastered' && (
+                    <button
+                      onClick={() => handleReviewAgain(card)}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                        padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
+                        border: '1.5px solid var(--acc)', background: 'var(--acc-dim)',
+                        color: 'var(--acc)', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                           strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>
+                      </svg>
+                      Review again
+                    </button>
                   )}
 
                   {/* Rewrites the entry against the current prompt, keeping the
