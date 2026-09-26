@@ -81,6 +81,8 @@ export default function StudyScreen() {
   const [done, setDone] = useState(false)
   const [remainingCount, setRemainingCount] = useState(0)
   const [peeked, setPeeked] = useState(false)
+  const [hinted, setHinted] = useState(false)
+  const hintRef = useRef(null) // WordInput's "show the first letter"
   const [learnedSessions, setLearnedSessions] = useState([])
   // Grade for the current card, decided by how the user answered (typed / gave up).
   const [autoGrade, setAutoGrade] = useState(null)
@@ -169,6 +171,7 @@ export default function StudyScreen() {
       setIndex(i => i + 1)
       setRevealed(false)
       setPeeked(false)
+      setHinted(false)
       setAutoGrade(null)
     }
   }
@@ -252,6 +255,7 @@ export default function StudyScreen() {
                   setIndex(0)
                   setRevealed(false)
                   setPeeked(false)
+      setHinted(false)
                   setAutoGrade(null)
                   setResults([])
                   setDone(false)
@@ -409,12 +413,18 @@ export default function StudyScreen() {
 
               <WordInput
                 word={card.word}
+                hintRef={hintRef}
                 onSolved={(rating) => { setAutoGrade(rating); setRevealed(true) }}
               />
 
-              {card.translation_ru && (
-                <TranslationPeek text={card.translation_ru} peeked={peeked} onPeek={() => setPeeked(true)} />
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {!hinted && (
+                  <HintButton onHint={() => { hintRef.current?.(); setHinted(true) }} />
+                )}
+                {card.translation_ru && (
+                  <TranslationPeek text={card.translation_ru} peeked={peeked} onPeek={() => setPeeked(true)} />
+                )}
+              </div>
 
               <div style={{ height: 1, background: 'var(--border)' }} />
 
@@ -502,9 +512,9 @@ const isLetter = (c) => /\p{L}/u.test(c)
 // wrong letters turn red immediately; a fully correct entry auto-reveals.
 // Diacritics are matched leniently (c=č, s=š, z=ž, d=đ). Spaces/hyphens are
 // shown as separators and skipped by the typing cursor.
-function WordInput({ word, onSolved }) {
+function WordInput({ word, hintRef, onSolved }) {
   const [typed, setTyped] = useState('')
-  // First letter shown as a hint, from the bulb in the empty first slot.
+  // First letter shown as a hint (the bulb under the word).
   const [hinted, setHinted] = useState(false)
   const inputRef = useRef(null)
   const solvedRef = useRef(false)
@@ -522,17 +532,6 @@ function WordInput({ word, onSolved }) {
     return () => clearTimeout(t)
   }, [word])
 
-  // The hint lets the user recall the word instead of guessing it, and costs
-  // the Easy grade: the attempt counts as a mistake, so OK at best.
-  function showFirstLetter(e) {
-    e.stopPropagation()
-    if (solvedRef.current) return
-    mistakeRef.current = true
-    setHinted(true)
-    setTyped(letters[0])
-    flagAndCheck(letters[0])
-    inputRef.current?.focus()
-  }
 
   // Flag a mistake if any entered character (ignoring diacritics) is wrong, then
   // auto-reveal once the whole word is correct — Easy if flawless, else OK.
@@ -548,6 +547,20 @@ function WordInput({ word, onSolved }) {
       setTimeout(() => onSolved(rating), 320)
     }
   }
+
+  // The hint lets the user recall the word instead of guessing it, and costs
+  // the Easy grade: the attempt counts as a mistake, so OK at best.
+  // Called straight from the bulb's tap, so focusing the input still counts as
+  // part of the user's gesture and iOS keeps the keyboard up.
+  function showFirstLetter() {
+    if (solvedRef.current) return
+    mistakeRef.current = true
+    setHinted(true)
+    setTyped(letters[0])
+    flagAndCheck(letters[0])
+    inputRef.current?.focus()
+  }
+  useEffect(() => { hintRef.current = showFirstLetter })
 
   function handleChange(e) {
     const next = [...e.target.value].filter(isLetter).slice(0, letters.length).join('')
@@ -632,23 +645,15 @@ function WordInput({ word, onSolved }) {
         } else if (isCurrent) {
           borderColor = 'var(--acc)'
         }
-        // Until anything is typed, the first slot offers the hint.
-        const bulb = idx === 0 && typed.length === 0
         return (
-          <span key={i} onClick={bulb ? showFirstLetter : undefined} aria-label={bulb ? 'Show first letter' : undefined} style={{
+          <span key={i} style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             width: slot, flexShrink: 0, height,
             borderBottom: '2.5px solid ' + borderColor,
             fontSize, fontWeight: 800, color: textColor, lineHeight: 1,
             transition: 'color 0.1s, border-color 0.1s',
-            cursor: bulb ? 'pointer' : undefined,
           }}>
-            {bulb ? (
-              <svg width={fontSize * 0.85} height={fontSize * 0.85} viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18h6"/><path d="M10 22h4"/>
-                <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/>
-              </svg>
-            ) : typedCh ?? ''}
+            {typedCh ?? ''}
           </span>
         )
       })}
@@ -686,6 +691,28 @@ function TranslationPeek({ text, peeked, onPeek }) {
     >
       {eye}
       Translation
+    </button>
+  )
+}
+
+// Icon-only, the same chip as Translation. preventDefault on pointer down keeps
+// focus in the hidden input, so the keyboard does not drop on tap.
+function HintButton({ onHint }) {
+  return (
+    <button
+      onPointerDown={e => e.preventDefault()}
+      onClick={onHint}
+      aria-label="Show first letter"
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--s2)', border: 'none', borderRadius: 10, padding: '7px 10px',
+        color: 'var(--t2)', cursor: 'pointer', flexShrink: 0,
+      }}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 18h6"/><path d="M10 22h4"/>
+        <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V17h6v-.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/>
+      </svg>
     </button>
   )
 }
