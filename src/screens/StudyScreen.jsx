@@ -6,7 +6,7 @@ import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../com
 import { groupReviewsBySession, formatSessionTime } from '../lib/learnedToday'
 import VerbForms from '../components/VerbForms'
 import SpeakButton from '../components/SpeakButton'
-import { headwordSize } from '../lib/headword'
+import Headword from '../components/Headword'
 
 // SM-2-ish SRS — 3-button: hard / ok / easy
 // First reviews use fixed intervals (1 → 1 → 3 → 7), then ease_factor kicks in
@@ -150,6 +150,25 @@ export default function StudyScreen() {
     ]).catch(() => {}))
 
     setResults(prev => [...prev, { word: card.word, rating, interval: updates.interval_days }])
+    advance()
+  }
+
+  // The user does not want to learn this word at all: drop the card from their
+  // library. The shared dictionary entry stays, so re-adding the word later is
+  // instant. Its reviews go with it (on delete cascade).
+  function handleDiscard() {
+    const card = cards[index]
+    if (!card || gradedRef.current === card.id) return
+    if (!window.confirm(`Stop learning "${card.word}"? It will be removed from your library.`)) return
+    gradedRef.current = card.id
+
+    pendingRef.current.push(
+      supabase.from('cards').delete().eq('id', card.id).eq('user_id', user.id).then(() => {}, () => {})
+    )
+    advance()
+  }
+
+  function advance() {
     if (index + 1 >= cards.length) {
       setDone(true)
     } else {
@@ -337,13 +356,7 @@ export default function StudyScreen() {
             // After reveal: word + pos → divider → definition → patterns filled
             <>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-                <div style={{
-                  fontSize: headwordSize(card.word, 38, 200), fontWeight: 800, color: 'var(--acc)',
-                  letterSpacing: '-0.035em', lineHeight: 1.05,
-                  minWidth: 0, overflowWrap: 'anywhere',
-                }}>
-                  {card.word}
-                </div>
+                <Headword word={card.word} base={38} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}>
                   {/* Only on the revealed side — a speaker on the prompt side
                       would give the answer away before recall. */}
@@ -437,7 +450,7 @@ export default function StudyScreen() {
       {!revealed ? (
         <div style={{ padding: '0 18px 22px', flexShrink: 0, display: 'flex', gap: 8 }}>
           <button
-            onClick={() => { setAutoGrade('easy'); setRevealed(true) }}
+            onClick={handleDiscard}
             style={{
               flex: 1, padding: '15px 6px', borderRadius: 14,
               border: '1.5px solid var(--border)', background: 'var(--s1)',
@@ -445,7 +458,7 @@ export default function StudyScreen() {
               cursor: 'pointer',
             }}
           >
-            I knew it
+            Stop learning
           </button>
           <button
             className="btn btn-acc"
