@@ -173,45 +173,81 @@ Rules:
   its root/stem (e.g. for "greatness" do not use "great", "greatly"; for "decision" do not use
   "decide"). Explain the meaning using different vocabulary — paraphrase instead. This restriction
   does not apply to chunk headwords (the definition may reuse the phrase's own words).
-- A pattern is a PHRASE, never a sentence. It is the fragment a learner slots into their own
-  speech, so it must not come with a ready-made subject and finite verb wrapped around it.
-  Concretely: do NOT start a pattern with a subject pronoun (I/you/he/she/it/we/they) or with a
-  subject noun phrase that governs the verb, and do NOT write it as something that could stand
-  alone as a sentence. 4-8 words.
+- A pattern is a PHRASE, never a sentence: a few words the learner slots into their own speech —
+  wider than the bare word, narrower than a sentence. 3-8 words.
+  - It must not contain a subject together with a conjugated verb that make a complete statement,
+    and it must not be something that could stand alone as a sentence.
+  - Write it in lowercase (proper nouns aside) with no full stop, question mark or exclamation
+    mark at the end — it is a fragment, not a sentence.
+  - It is not bare either: give the word its typical company — the object, complement or
+    preposition it actually travels with.
+- Every pattern must be something a native speaker would actually say. Prefer the phrasing that
+  is genuinely common over one that is merely grammatical.
+- Choose the patterns the learner will actually meet. If a word's most frequent real use is a
+  fixed expression, that expression belongs in the patterns — do not fill the card with literal
+  uses while leaving out the idiom.
+- When "pos" lists two roles, spread the patterns across both, and pick the collocation that is
+  actually current in each.
+${isSr ? `
+SERBIAN PATTERNS — read this, the English habit does not carry over:
+Serbian drops the subject pronoun, so one conjugated verb is already a whole sentence
+("idem kući" = "I am going home"). Leaving the pronoun out does NOT make a pattern a phrase.
+- Verbs: build the pattern around the INFINITIVE with its typical company.
+  BAD:  "Morao sam <<sići>> sa autobusa" (a sentence — "sam" carries the subject)
+  GOOD: "<<sići>> sa autobusa"
+  BAD:  "Policija je <<provalila>> bandu" (a sentence)
+  GOOD: "<<provaliti>> u stan"
+  The card's verb_forms already show the present tense, so the patterns do not need to.
+  To show a conjugated form anyway, let it hang off another word in a "da" clause, so the whole
+  stays a fragment: "pomoći nekome da <<odveže>> pertle".
+- An impersonal fixed frame with no subject at all is the one exception — it IS the chunk the
+  learner needs: "<<treba>> mi pomoć", "<<žao>> mi je zbog nečega".
+- Nouns and adjectives: the word in the case its company requires, without a copula (je / su).
+  GOOD: "popeti se uz <<merdevine>>", "stajati na <<merdevinama>>"
+  BAD:  "<<Stoni>> tenis je popularan sport." (a sentence)
+  GOOD: "igrati <<stoni>> tenis"
+  BAD:  "On je <<potpuno>> zaboravio na sastanak." (a sentence)
+  GOOD: "<<potpuno>> zaboraviti na nešto"
+- Placeholders are Serbian and in the case the construction needs: nešto, nekoga, nekome,
+  nečemu, nečega — never sth / sb. GOOD: "<<ući>> u trag nečemu"
+- Vary the forms across patterns through cases (nouns, adjectives) and constructions (verbs).
+` : `
+ENGLISH PATTERNS:
+- Do NOT start a pattern with a subject pronoun (I/you/he/she/it/we/they) or with a subject
+  noun phrase that governs the verb.
   BAD:  "it took a long time to <<tame>> the wild horse" (a sentence)
   GOOD: "<<tame>> a wild animal"
   BAD:  "the lion was too dangerous to <<tame>>" (a sentence)
   GOOD: "too dangerous to <<tame>>"
-- Being a phrase is not licence to be bare. Give the word its typical company — the object,
-  complement or preposition it actually travels with. Use sth/sb/smn placeholders for generic slots.
+- Not bare: use sth / sb placeholders for generic slots.
   BAD:  "derogatory remarks" (too bare, no context)
   GOOD: "make <<derogatory>> remarks about sb"
   BAD:  "rapidly proliferate" (no company at all)
   GOOD: "allow misinformation to rapidly <<proliferate>>"
-- Every pattern must be something a native speaker would actually say. Prefer the phrasing that
-  is genuinely common over one that is merely grammatical.
+- Natural, not merely grammatical:
   BAD:  "the team carried the <<dead weight>>" (grammatical but nobody says it)
   GOOD: "just <<dead weight>> on the team"
   BAD:  "achieve greater <<evenness>> across the board" (reads like machine-translated boilerplate)
-- Choose the patterns the learner will actually meet. If a word's most frequent real use is a
-  fixed expression, that expression belongs in the patterns — do not fill the card with literal
-  uses while leaving out the idiom.
-  For "haul", "in it for the long <<haul>>" and "a long <<haul>>" matter more than a second
-  pattern about dragging something heavy.
-- When "pos" lists two roles, spread the patterns across both, and pick the collocation that is
-  actually current in each.
-  BAD  for "grasp" as verb / noun: "a firm <<grasp>> on the rope"
-  GOOD for "grasp" as verb / noun: "a good <<grasp>> of the subject"
+- The idiom first: for "haul", "in it for the long <<haul>>" and "a long <<haul>>" matter more
+  than a second pattern about dragging something heavy.
+- Two roles: for "grasp" as verb / noun, "a good <<grasp>> of the subject", not
+  "a firm <<grasp>> on the rope".
+`}
 - For a SINGLE-WORD headword, wrap ONLY the target word (in whatever grammatical form fits the
   context) in <<double angle brackets>>, and use varied grammatical forms across patterns to show
   how the word actually behaves:
-  e.g. for "trebati": "meni <<treba>> pomoć", "<<trebam>> da učim", "ne <<treba>> da brineš"
-  e.g. for "impact": "have a significant <<impact>> on sth", "<<impacting>> local communities"
-  e.g. for "effort": "make a conscious <<effort>> to do sth", "combined <<efforts>> of the team"
+${isSr
+  ? `  e.g. for "kuća": "vratiti se u <<kuću>>", "stajati ispred <<kuće>>", "živeti u staroj <<kući>>"
+  e.g. for "ući": "<<ući>> u kuću", "<<ući>> u trag nečemu", "ne moći <<ući>> bez karte"`
+  : `  e.g. for "impact": "have a significant <<impact>> on sth", "<<impacting>> local communities"
+  e.g. for "effort": "make a conscious <<effort>> to do sth", "combined <<efforts>> of the team"`}
 - For a CHUNK headword (multi-word), wrap the ENTIRE phrase in <<double angle brackets>> and vary
-  the surrounding sentence context across patterns instead of varying the phrase's own form:
-  e.g. for "take into account": "<<take into account>> the extra costs",
-  "fail to <<take into account>> last-minute changes"
+  the surrounding context across patterns instead of varying the phrase's own form:
+${isSr
+  ? `  e.g. for "uzeti u obzir": "<<uzeti u obzir>> dodatne troškove",
+  "ne <<uzeti u obzir>> promene u poslednjem trenutku"`
+  : `  e.g. for "take into account": "<<take into account>> the extra costs",
+  "fail to <<take into account>> last-minute changes"`}
 - 2-3 patterns showing real collocations and grammatical constructions`
 
   console.log(`[generate-card] model=${MODEL_ID}, word="${word}", lang=${langName}`)

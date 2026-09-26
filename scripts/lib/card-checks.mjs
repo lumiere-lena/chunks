@@ -8,6 +8,23 @@
 const ARTICLES = /^(a|an|the)\s/i
 const SUBJECT_PRONOUN = /^\s*(i|you|he|she|it|we|they)\b/i
 
+// Serbian drops the subject, so a missing pronoun proves nothing there. What
+// does give a sentence away: a leading pronoun when there is one, or the past
+// tense — an auxiliary (sam/si/je/smo/ste/su) next to an -o/-la/-lo/-li/-le
+// participle, in either order ("morao sam", "je bila"). Not \b: without the u
+// flag it treats č, š, ž… as non-letters.
+const SR_PRONOUN = /^\s*(ja|ti|on|ona|ono|mi|vi|oni|one)(?!\p{L})/iu
+const SR_PAST = /(?<!\p{L})(sam|si|je|smo|ste|su)\s+\p{L}+(o|la|lo|li|le)(?!\p{L})|(?<!\p{L})\p{L}+(o|la|lo|li|le)\s+(sam|si|je|smo|ste|su)(?!\p{L})/iu
+
+// Language-neutral: a pattern is a fragment, so it neither opens with a capital
+// nor closes with sentence punctuation.
+function readsAsSentence(text, language) {
+  if (/^\p{Lu}/u.test(text) && !/^I(?!\p{L})/.test(text)) return true
+  if (/[.!?]\s*$/.test(text)) return true
+  if (language === 'sr') return SR_PRONOUN.test(text) || SR_PAST.test(text)
+  return SUBJECT_PRONOUN.test(text)
+}
+
 // Patterns may be plain strings or, once idiom translations land, objects.
 export const patternText = (p) => String(typeof p === 'string' ? p : p?.text ?? '')
 
@@ -28,7 +45,9 @@ export function structural(e) {
   // skipped "tame", whose definition opened with "An animal that is tame...".
   if (single && w.length >= 4) {
     const stem = w.slice(0, 5).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    if (new RegExp(`\\b${stem}`, 'i').test(def)) {
+    // Not \b: without the u flag it treats č, š, ž… as non-letters, so a
+    // Serbian headword starting with one ("čas", "šetati") never matched.
+    if (new RegExp(`(?<!\\p{L})${stem}`, 'iu').test(def)) {
       out.push('definition reuses the headword stem')
     }
   }
@@ -38,8 +57,7 @@ export function structural(e) {
     out.push('pattern missing << >> markers')
   }
   // Patterns must be phrases to slot into speech, not ready-made sentences.
-  // A leading subject pronoun is the shape that keeps coming back.
-  if (pats.some(p => SUBJECT_PRONOUN.test(patternText(p).replace(/<<|>>/g, '')))) {
+  if (pats.some(p => readsAsSentence(patternText(p).replace(/<<|>>/g, ''), e.language))) {
     out.push('pattern reads as a sentence')
   }
 
