@@ -52,9 +52,10 @@ export default function LibraryScreen() {
     setLoading(false)
   }
 
-  async function handleDelete(id) {
-    setCards(prev => prev.filter(c => c.id !== id))
-    await supabase.from('cards').delete().eq('id', id)
+  async function handleDelete(card) {
+    if (!window.confirm(`Delete "${card.word}" from your library?`)) return
+    setCards(prev => prev.filter(c => c.id !== card.id))
+    await supabase.from('cards').delete().eq('id', card.id).eq('user_id', user.id)
   }
 
   // Rewrite a card's text from the current prompt. Only the content is
@@ -231,7 +232,7 @@ export default function LibraryScreen() {
                     {card.status}
                   </span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(card.id) }}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(card) }}
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer',
                       color: 'var(--t3)', padding: 4, display: 'flex', alignItems: 'center',
