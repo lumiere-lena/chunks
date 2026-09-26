@@ -24,6 +24,7 @@ export default function LibraryScreen() {
   const { user, activeLang, setActiveLang, plan } = useAuth()
   const [cards, setCards] = useState([])
   const [filter, setFilter] = useState('all')
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
   const [regeneratingId, setRegeneratingId] = useState(null)
@@ -98,7 +99,12 @@ export default function LibraryScreen() {
     }
   }
 
-  const filtered = filter === 'all' ? cards : cards.filter(c => c.status === filter)
+  // Search matches the word or its Russian translation, on top of the status filter.
+  const q = query.trim().toLowerCase()
+  const filtered = cards.filter(c =>
+    (filter === 'all' || c.status === filter) &&
+    (!q || c.word.toLowerCase().includes(q) || (c.translation_ru ?? '').toLowerCase().includes(q))
+  )
 
   return (
     <div className="screen" style={{ background: 'var(--bg)' }}>
@@ -132,9 +138,28 @@ export default function LibraryScreen() {
         </p>
       </div>
 
+      {/* Search */}
+      <div style={{ padding: '14px 20px 0', flexShrink: 0, position: 'relative' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ position: 'absolute', left: 34, top: '50%', marginTop: 7, transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          className="input"
+          type="search"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search words"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          style={{ padding: '12px 16px 12px 42px' }}
+        />
+      </div>
+
       {/* Filter tabs */}
       <div style={{
-        display: 'flex', gap: 6, padding: '16px 20px 10px',
+        display: 'flex', gap: 6, padding: '12px 20px 10px',
         overflowX: 'auto', flexShrink: 0,
       }}>
         {FILTERS.map(f => (
@@ -168,7 +193,7 @@ export default function LibraryScreen() {
             textAlign: 'center', padding: '40px 20px',
             color: 'var(--t3)', fontSize: 14, fontWeight: 600,
           }}>
-            {cards.length === 0 ? 'No cards yet' : 'No cards match this filter'}
+            {cards.length === 0 ? 'No cards yet' : q ? `No words match "${query.trim()}"` : 'No cards match this filter'}
           </div>
         )}
 
