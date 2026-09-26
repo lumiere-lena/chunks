@@ -6,7 +6,8 @@ import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../com
 import VerbForms from '../components/VerbForms'
 import SpeakButton from '../components/SpeakButton'
 import Headword from '../components/Headword'
-import { foldText } from '../lib/fold'
+import SearchField from '../components/SearchField'
+import { matchesSearch } from '../lib/fold'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -110,15 +111,9 @@ export default function LibraryScreen() {
     }
   }
 
-  // Search matches the word or its Russian translation, on top of the status
-  // filter. The word side is folded, so Serbian matches without diacritics or in
-  // Cyrillic; the translation side is not, since folding would break Russian.
-  const q = query.trim().toLowerCase()
-  const fq = foldText(q)
-  const filtered = cards.filter(c =>
-    (filter === 'all' || c.status === filter) &&
-    (!q || foldText(c.word).includes(fq) || (c.translation_ru ?? '').toLowerCase().includes(q))
-  )
+  // Search on top of the status filter.
+  const q = query.trim()
+  const filtered = cards.filter(c => (filter === 'all' || c.status === filter) && matchesSearch(c, query))
 
   return (
     <div className="screen" style={{ background: 'var(--bg)' }}>
@@ -152,24 +147,7 @@ export default function LibraryScreen() {
         </p>
       </div>
 
-      {/* Search */}
-      <div style={{ padding: '14px 20px 0', flexShrink: 0, position: 'relative' }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ position: 'absolute', left: 34, top: '50%', marginTop: 7, transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input
-          className="input"
-          type="search"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search words"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          style={{ padding: '12px 16px 12px 42px' }}
-        />
-      </div>
+      <SearchField value={query} onChange={setQuery} />
 
       {/* Filter tabs */}
       <div style={{
@@ -207,7 +185,7 @@ export default function LibraryScreen() {
             textAlign: 'center', padding: '40px 20px',
             color: 'var(--t3)', fontSize: 14, fontWeight: 600,
           }}>
-            {cards.length === 0 ? 'No cards yet' : q ? `No words match "${query.trim()}"` : 'No cards match this filter'}
+            {cards.length === 0 ? 'No cards yet' : q ? `No words match "${q}"` : 'No cards match this filter'}
           </div>
         )}
 

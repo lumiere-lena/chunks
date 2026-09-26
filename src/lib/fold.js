@@ -28,3 +28,13 @@ export function foldText(str) {
     .replace(/[čćđšž]/g, ch => DIACRITIC_FOLD[ch])
     .replace(/dj/g, 'd')
 }
+
+// Matches the word or its Russian translation. The word side is folded, so
+// Serbian matches without diacritics or in Cyrillic; the translation side is
+// not, since folding would break Russian.
+export function matchesSearch(entry, query) {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return foldText(entry.word).includes(foldText(q))
+    || (entry.translation_ru ?? '').toLowerCase().includes(q)
+}

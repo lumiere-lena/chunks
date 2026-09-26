@@ -5,6 +5,8 @@ import NavBar from '../components/NavBar'
 import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 import VerbForms from '../components/VerbForms'
 import Headword from '../components/Headword'
+import SearchField from '../components/SearchField'
+import { matchesSearch } from '../lib/fold'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -18,6 +20,7 @@ export default function DictionaryScreen() {
   const [expandedId, setExpandedId] = useState(null)
   const [addingId, setAddingId] = useState(null)
   const [myWords, setMyWords] = useState(new Set())
+  const [query, setQuery] = useState('')
 
   const tapDisabled = plan === 'free'
   const wt = useWordTap({
@@ -72,6 +75,9 @@ export default function DictionaryScreen() {
     setAddingId(null)
   }
 
+  const q = query.trim()
+  const shown = words.filter(w => matchesSearch(w, query))
+
   return (
     <div className="screen" style={{ background: 'var(--bg)' }}>
       {/* Header */}
@@ -104,8 +110,10 @@ export default function DictionaryScreen() {
         </p>
       </div>
 
+      <SearchField value={query} onChange={setQuery} />
+
       {/* List */}
-      <div className="scroll" style={{ padding: '14px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="scroll" style={{ padding: '12px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {loading && (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--t3)', fontSize: 14, fontWeight: 600 }}>
             Loading…
@@ -121,7 +129,16 @@ export default function DictionaryScreen() {
           </div>
         )}
 
-        {words.map(entry => {
+        {!loading && words.length > 0 && shown.length === 0 && (
+          <div style={{
+            textAlign: 'center', padding: '40px 20px',
+            color: 'var(--t3)', fontSize: 14, fontWeight: 600,
+          }}>
+            No words match "{q}"
+          </div>
+        )}
+
+        {shown.map(entry => {
           const isOpen = expandedId === entry.id
           const alreadyAdded = myWords.has(entry.word.toLowerCase())
 
