@@ -549,15 +549,17 @@ function WordInput({ word, hintRef, onSolved }) {
   }
 
   // The hint lets the user recall the word instead of guessing it, and costs
-  // the Easy grade: the attempt counts as a mistake, so OK at best.
+  // the Easy grade: the attempt counts as a mistake, so OK at best. The letter
+  // appears as a grey placeholder in the empty first slot — the user still types
+  // it, and it colours like any typed letter. Whatever was typed is cleared so
+  // the placeholder shows.
   // Called straight from the bulb's tap, so focusing the input still counts as
   // part of the user's gesture and iOS keeps the keyboard up.
   function showFirstLetter() {
     if (solvedRef.current) return
     mistakeRef.current = true
     setHinted(true)
-    setTyped(letters[0])
-    flagAndCheck(letters[0])
+    setTyped('')
     inputRef.current?.focus()
   }
   useEffect(() => { hintRef.current = showFirstLetter })
@@ -640,7 +642,7 @@ function WordInput({ word, hintRef, onSolved }) {
         let textColor = 'var(--t1)'
         if (typedCh != null) {
           const ok = foldChar(typedCh) === foldChar(ch)
-          textColor = hinted && idx === 0 ? 'var(--t3)' : ok ? 'var(--acc)' : RED
+          textColor = ok ? 'var(--acc)' : RED
           borderColor = ok ? 'var(--acc)' : RED
         } else if (isCurrent) {
           borderColor = 'var(--acc)'
@@ -653,7 +655,9 @@ function WordInput({ word, hintRef, onSolved }) {
             fontSize, fontWeight: 800, color: textColor, lineHeight: 1,
             transition: 'color 0.1s, border-color 0.1s',
           }}>
-            {typedCh ?? ''}
+            {typedCh ?? (hinted && idx === 0
+              ? <span style={{ color: 'var(--t3)', fontWeight: 600 }}>{ch}</span>
+              : '')}
           </span>
         )
       })}
