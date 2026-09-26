@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import NavBar from '../components/NavBar'
 import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 import VerbForms from '../components/VerbForms'
-import { headwordSize } from '../lib/headword'
+import Headword from '../components/Headword'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -169,12 +169,7 @@ export default function DictionaryScreen() {
                   <div style={{ height: 1, background: 'var(--border)' }} />
 
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{
-                      fontSize: headwordSize(entry.word, 28, 270), fontWeight: 800, color: 'var(--acc)',
-                      letterSpacing: '-0.03em', lineHeight: 1.05, minWidth: 0, overflowWrap: 'anywhere',
-                    }}>
-                      {entry.word}
-                    </div>
+                    <Headword word={entry.word} base={28} />
                   </div>
 
                   {entry.verb_forms && <VerbForms forms={entry.verb_forms} language={activeLang} size="sm" />}

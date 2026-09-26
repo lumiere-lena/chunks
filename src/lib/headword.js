@@ -10,5 +10,3 @@ export function fitFontSize(text, base, avail, { min = 20, perChar = 0.56 } = {}
   const fit = avail / (len * perChar)
   return Math.max(min, Math.min(base, Math.round(fit * 2) / 2))
 }
-
-export const headwordSize = (word, base, avail) => fitFontSize(word, base, avail, { min: 20 })

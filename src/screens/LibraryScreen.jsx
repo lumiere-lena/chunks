@@ -5,7 +5,7 @@ import NavBar from '../components/NavBar'
 import { TappableText, TappablePattern, CreateCardBar, useWordTap } from '../components/WordTap'
 import VerbForms from '../components/VerbForms'
 import SpeakButton from '../components/SpeakButton'
-import { headwordSize } from '../lib/headword'
+import Headword from '../components/Headword'
 
 const LANG_META = {
   sr: { flag: '🇷🇸', name: 'Serbian' },
@@ -224,12 +224,7 @@ export default function LibraryScreen() {
                   <div style={{ height: 1, background: 'var(--border)' }} />
 
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{
-                      fontSize: headwordSize(card.word, 28, 210), fontWeight: 800, color: 'var(--acc)',
-                      letterSpacing: '-0.03em', lineHeight: 1.05, minWidth: 0, overflowWrap: 'anywhere',
-                    }}>
-                      {card.word}
-                    </div>
+                    <Headword word={card.word} base={28} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                       <SpeakButton word={card.word} language={activeLang} />
                       {card.pos && (
