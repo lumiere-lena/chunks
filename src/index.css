@@ -31,13 +31,20 @@ body {
   background: var(--bg);
   color: var(--t1);
   min-height: 100dvh;
+  /* The page itself never scrolls (see .screen), so stop iOS from rubber-banding
+     it and dragging the nav bar along. */
+  overscroll-behavior: none;
 }
 
 /* Layout */
+/* A screen is exactly one viewport tall: header and nav bar stay put and only
+   the .scroll area inside moves. With min-height the screen grew with its
+   content, the whole page scrolled, and the nav bar ended up below the list. */
 .screen {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   max-width: 430px;
   margin: 0 auto;
   animation: fadeUp 0.22s ease;
@@ -53,7 +60,7 @@ body {
   to { transform: rotate(360deg); }
 }
 
-.scroll { flex: 1; overflow-y: auto; }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .scroll::-webkit-scrollbar { display: none; }
 
 /* Typography */
