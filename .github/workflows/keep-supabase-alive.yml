@@ -1,11 +1,11 @@
 # Supabase pauses free-tier projects after 7 days without activity.
-# This job reads one row from the public dictionary table every 3 days
+# This job reads one row from the public dictionary table every day
 # so the project never looks idle.
 name: Keep Supabase alive
 
 on:
   schedule:
-    - cron: '0 6 */3 * *'
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
