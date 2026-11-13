@@ -1,23 +1,26 @@
-# Supabase pauses free-tier projects after 7 days without activity.
-# This job reads one row from the public dictionary table every day
-# so the project never looks idle.
+# Supabase pauses free-tier projects after 7 days of low activity.
+# A read-only ping was not enough, so this job writes a heartbeat row
+# (public.keep_alive(), see migration 20261023_001_heartbeat.sql)
+# twice a day so the project never looks idle.
 name: Keep Supabase alive
 
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 6,18 * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Query the database
+      - name: Write a heartbeat to the database
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          curl --fail --silent --show-error \
-            "$SUPABASE_URL/rest/v1/dictionary?select=id&limit=1" \
+          curl --fail --silent --show-error -X POST \
+            "$SUPABASE_URL/rest/v1/rpc/keep_alive" \
             -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY"
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
