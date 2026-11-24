@@ -7,6 +7,7 @@ import VerbForms from '../components/VerbForms'
 import SpeakButton from '../components/SpeakButton'
 import Headword from '../components/Headword'
 import SearchField from '../components/SearchField'
+import SourceLink from '../components/SourceLink'
 import { matchesSearch } from '../lib/fold'
 
 const LANG_META = {
@@ -14,12 +15,13 @@ const LANG_META = {
   en: { flag: '🇬🇧', name: 'English' },
 }
 
-const FILTERS = ['all', 'new', 'learning', 'mastered']
+const FILTERS = ['all', 'new', 'learning', 'mastered', 'known']
 
 const BADGE_STYLES = {
   new:      { color: 'var(--new-c)',      background: 'color-mix(in oklch, var(--new-c) 18%, transparent)' },
   learning: { color: 'var(--learning-c)', background: 'color-mix(in oklch, var(--learning-c) 18%, transparent)' },
   mastered: { color: 'var(--mastered-c)', background: 'color-mix(in oklch, var(--mastered-c) 18%, transparent)' },
+  known:    { color: 'var(--t2)',         background: 'var(--s2)' },
 }
 
 export default function LibraryScreen() {
@@ -45,7 +47,7 @@ export default function LibraryScreen() {
     setLoading(true)
     const { data } = await supabase
       .from('cards')
-      .select('id, word, pos, definition, translation_ru, patterns, verb_forms, status, created_at')
+      .select('id, word, pos, definition, translation_ru, patterns, verb_forms, status, source_id, my_attempt, created_at')
       .eq('user_id', user.id)
       .eq('language', activeLang)
       .order('created_at', { ascending: false })
@@ -60,8 +62,8 @@ export default function LibraryScreen() {
     await supabase.from('cards').delete().eq('id', card.id).eq('user_id', user.id)
   }
 
-  // A mastered card is out of study for good; this puts it back at the bottom
-  // of the ladder, due today.
+  // A mastered or known card is out of study for good; this puts it back at
+  // the bottom of the ladder, due today.
   async function handleReviewAgain(card) {
     const today = new Date().toISOString().split('T')[0]
     const updates = { status: 'learning', interval_days: 1, next_review_at: today }
@@ -274,14 +276,21 @@ export default function LibraryScreen() {
                         <div key={i} style={{
                           background: 'var(--bg)', borderRadius: 10, padding: '9px 13px',
                           fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
+                          display: 'flex', alignItems: 'flex-start', gap: 10,
                         }}>
-                          <TappablePattern pattern={p} word={card.word} idPrefix={`l-pat-${card.id}-${i}`} {...wt.tapProps} disabled={tapDisabled} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <TappablePattern pattern={p} word={card.word} idPrefix={`l-pat-${card.id}-${i}`} {...wt.tapProps} disabled={tapDisabled} />
+                            {i === 0 && card.my_attempt && (
+                              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 4 }}>I said: {card.my_attempt}</div>
+                            )}
+                          </div>
+                          {i === 0 && <SourceLink sourceId={card.source_id} />}
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {card.status === 'mastered' && (
+                  {(card.status === 'mastered' || card.status === 'known') && (
                     <button
                       onClick={() => handleReviewAgain(card)}
                       style={{

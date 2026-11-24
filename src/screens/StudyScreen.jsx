@@ -7,6 +7,7 @@ import { groupReviewsBySession, formatSessionTime } from '../lib/learnedToday'
 import VerbForms from '../components/VerbForms'
 import SpeakButton from '../components/SpeakButton'
 import Headword from '../components/Headword'
+import SourceLink from '../components/SourceLink'
 import { foldChar } from '../lib/fold'
 
 // A fixed ladder instead of SM-2. Each flawless answer (Easy) moves the card
@@ -117,7 +118,7 @@ export default function StudyScreen() {
       .select('*')
       .eq('user_id', user.id)
       .eq('language', activeLang)
-      .neq('status', 'mastered')
+      .not('status', 'in', '(mastered,known)')
       .lte('next_review_at', today)
       .order('next_review_at', { ascending: true })
 
@@ -388,8 +389,16 @@ export default function StudyScreen() {
                       <div key={i} style={{
                         background: 'var(--bg)', borderRadius: 12, padding: '11px 14px',
                         fontSize: 15, fontWeight: 500, lineHeight: 1.5, color: 'var(--t1)',
+                        display: 'flex', alignItems: 'flex-start', gap: 10,
                       }}>
-                        <TappablePattern pattern={p} word={card.word} idPrefix={`s-pat-${card.id}-${i}`} {...wt.tapProps} disabled={tapDisabled} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <TappablePattern pattern={p} word={card.word} idPrefix={`s-pat-${card.id}-${i}`} {...wt.tapProps} disabled={tapDisabled} />
+                          {i === 0 && card.my_attempt && (
+                            <div style={{ fontSize: 12.5, color: 'var(--t3)', marginTop: 4 }}>I said: {card.my_attempt}</div>
+                          )}
+                        </div>
+                        {/* Only after reveal: the source page shows the phrase itself. */}
+                        {i === 0 && <SourceLink sourceId={card.source_id} size={16} />}
                       </div>
                     ))}
                   </div>
