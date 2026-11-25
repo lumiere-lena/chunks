@@ -10,6 +10,7 @@ import StudyScreen from './screens/StudyScreen'
 import LibraryScreen from './screens/LibraryScreen'
 import DictionaryScreen from './screens/DictionaryScreen'
 import BulkImportScreen from './screens/BulkImportScreen'
+import SourceScreen from './screens/SourceScreen'
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth()
@@ -37,6 +38,7 @@ function AppRoutes() {
       <Route path="/dictionary" element={<ProtectedRoute><DictionaryScreen /></ProtectedRoute>} />
       <Route path="/library" element={<ProtectedRoute><LibraryScreen /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
+      <Route path="/sources/:id" element={<ProtectedRoute><SourceScreen /></ProtectedRoute>} />
       <Route path="/study" element={<ProtectedRoute><StudyScreen /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
