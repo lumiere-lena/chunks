@@ -51,7 +51,7 @@ export default function SourceScreen() {
       setLoading(true)
       const [{ data: src }, { data: cardRows }, { data: exRows }] = await Promise.all([
         supabase.from('sources').select('id, kind, url, title, author, language, created_at').eq('id', id).maybeSingle(),
-        supabase.from('cards').select('id, word, pos, definition, patterns, status, context_ts, my_attempt, language').eq('source_id', id),
+        supabase.from('cards').select('id, word, pos, definition, patterns, status, context, context_ts, my_attempt, language').eq('source_id', id),
         supabase.from('exercises').select('id, card_id, kind, sentence, answers, position').eq('source_id', id).order('position'),
       ])
       if (!alive) return
@@ -213,7 +213,8 @@ function Empty({ children }) {
 }
 
 function PhraseRow({ card, onKnow }) {
-  const quote = card.patterns?.[0]
+  // The full sentence from the source; older cards only have patterns.
+  const quote = card.context || card.patterns?.[0]
   return (
     <div style={{ background: 'var(--s1)', borderRadius: 16, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -241,6 +242,13 @@ function PhraseRow({ card, onKnow }) {
           {card.my_attempt && (
             <div style={{ fontSize: 12.5, color: 'var(--t3)', marginTop: 4 }}>I said: {card.my_attempt}</div>
           )}
+        </div>
+      )}
+      {card.context && card.patterns?.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 13, fontWeight: 600, color: 'var(--t2)' }}>
+          {card.patterns.map((p, i) => (
+            <span key={i}><TappablePattern pattern={p} word={card.word} idPrefix={`srcp-${card.id}-${i}`} disabled /></span>
+          ))}
         </div>
       )}
     </div>
